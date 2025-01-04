@@ -1,18 +1,24 @@
-Track Irish and traditional tunes
+# Track traditional tune collection
 
-Uses homebrew python3 instalation
+Uses homebrew python3 installation.
 
 ### Commentary
+Ideally it should be quite easy to add a tune, and also quite easy to update the tune in the future. But getting in a tune that I want to be practicing seems like a quite desirable feature. Eventually I want to be able to do this from my phone with just a name.
+
 here's some good ideas: https://thesession.org/discussions/46809
 
 easyabc is an old program that has some good features:
 https://easyabc.sourceforge.net/
+
+could also have which instruments a tune is mastered on.
+e.g. FiddleStatus field if I pick up fiddle.
 
 
 ### features
 - [ ] store tunes in a standard format
 - [ ] display a given tune
 - [ ] display tunes that should be learned
+- [ ] add a tune via a url form and update home database of tunes.
 - [ ] store different formats for a tune, mp3, links (starting at specific time)
 - [ ] output to spreadsheet
 - [ ] output to plaintext list or cheatsheet with first few notes of each tune
@@ -36,6 +42,8 @@ https://easyabc.sourceforge.net/
     - french canadian
 - composer: string
 - comments: string array of additional comments about the tune
+- date added: date string
+- date updated: date string
 
 ### Set object
 represents a collection of tunes that goes well together
