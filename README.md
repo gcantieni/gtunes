@@ -15,10 +15,14 @@ e.g. FiddleStatus field if I pick up fiddle.
 
 
 ### features
-- [ ] store tunes in a standard format
+- [x] store tunes in a standard format
 - [ ] display a given tune
+- [ ] consume a tune list with standard format
+- [ ] make sets from tune list (with completion)
+- [ ] show what sets a tune is in
+- [ ] show the abc notation as image
 - [ ] display tunes that should be learned
-- [ ] add a tune via a url form and update home database of tunes.
+- [ ] add a tune via a url form and update home database of tunes
 - [ ] store different formats for a tune, mp3, links (starting at specific time)
 - [ ] output to spreadsheet
 - [ ] output to plaintext list or cheatsheet with first few notes of each tune
