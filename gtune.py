@@ -70,8 +70,13 @@ class LineParser:
     def __str__(self):
         return "I'm a parser"
 
+    # Abstract method
     def parse_line(self, line):
         pass
+
+    def add_tune(self, tune):
+        if tune:
+            self.tunes[tune.name] = tune
 
     def parse_tune(self, line):
         line_parts = line.split("-")
@@ -120,40 +125,67 @@ class LineParser:
 
 class StartLineParser(LineParser):
     def parse_line(self, line):
-        line = line.strip()
-        if line == "LEARN:":
+        line = line.strip(':\t ')
+        if line == "LEARN":
             print("Entering LEARN section")
             return LearnLineParser(self.tunes)
-        if line == "PRACTICE:":
+        if line == "PRACTICE":
             return PracticeLineParser()
-        if line == "REELS:":
+        if line == "REELS":
             return LearnedTuneParser("reel")
         return self
 
 
 class LearnLineParser(LineParser):
     def parse_line(self, line):
-        t = self.parse_tune(line)
-
-        if t:
-            print(t)
-
-        if line.strip() == "PRACTICE:":
+        if line.strip(':\t ') == "PRACTICE":
             return PracticeLineParser(self.tunes)
+        
+        tune = self.parse_tune(line)
+        self.add_tune(tune)
 
         return self
 
 class PracticeLineParser(LineParser):
     def parse_line(self, line):
-        print("Practice line")
+        if line.strip(':\t ') == "REELS":
+            return LearnedTuneParser(self.tunes, "reel")
+
+        tune = self.parse_tune(line)
+        tune.status = 2
+
+        self.add_tune(tune)
+
         return self
 
 class LearnedTuneParser(LineParser):
     def __init__(self, tune_type):
         self.tune_type = tune_type
+        self.key = None
 
-    def parse_list(self, line):
-        pass
+    def match_key(self, line):
+        pattern = r'^[A-G]#?(m)?$'
+        return re.match(line)
+    
+    def match_tune_type(self, line):
+        pattern = r'(REELS|JIGS|HORNPIPES|POLKAS)'
+        return re.match(pattern, line.strip(':\t '))
+
+    def parse_line(self, line):
+        match = self.match_key(line)
+        if match:
+            self.key = match.group()
+            return self
+        
+        match = self.match_tune_type(line)
+        if match:
+            self.tune_type = match.group()
+            return self
+        
+        tune = self.parse_tune(line)
+        self.add_tune(tune)
+
+        return self
 
 def add(args):
     tune = Tune(args.name)
