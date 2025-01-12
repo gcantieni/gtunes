@@ -56,10 +56,13 @@ class TuneListConsumer:
         with open(args.filepath, "r") as file:
             for line in file:
                 #print(f"parse: passing in line {line}")
+                new_state = self.state.parse_line(line)
+                if new_state != self.state:
+                    print(f"Going from {self.state} to {new_state}")
                 self.state = self.state.parse_line(line)
-                if type(self.state) != LearnLineParser and type(self.state) != StartLineParser:
-                    print("Done")
-                    return self.tunes
+        
+        for tune in self.tunes:
+            print(f"{self.tunes[tune]}")
 
         return self.tunes
     
@@ -68,7 +71,7 @@ class LineParser:
         self.tunes = tunes
 
     def __str__(self):
-        return "I'm a parser"
+        return "Base Line Parser"
 
     # Abstract method
     def parse_line(self, line):
@@ -108,7 +111,7 @@ class LineParser:
         for md in metadata:
             md = md.strip()
             key_pattern = r'[A-G]'
-            type_pattern = r'(?i)(reel|slip jig|hop jig|jig|polka)'
+            type_pattern = r'(?i)(reel|slip jig|hop jig|jig|polka|hornpipe)'
 
             key_match = re.search(key_pattern, md)
             type_match = re.search(type_pattern, md)
@@ -124,21 +127,27 @@ class LineParser:
         return tune
 
 class StartLineParser(LineParser):
+
+    def __str__(self):
+        return "Start parser"
+    
     def parse_line(self, line):
-        line = line.strip(':\t ')
-        if line == "LEARN":
-            print("Entering LEARN section")
+        line = line.strip()
+        if line == "LEARN:":
             return LearnLineParser(self.tunes)
-        if line == "PRACTICE":
+        if line == "PRACTICE:":
             return PracticeLineParser()
-        if line == "REELS":
+        if line == "REELS:":
             return LearnedTuneParser("reel")
         return self
 
 
 class LearnLineParser(LineParser):
+    def __str__(self):
+        return "Learn parser"
+
     def parse_line(self, line):
-        if line.strip(':\t ') == "PRACTICE":
+        if line.strip() == "PRACTICE:":
             return PracticeLineParser(self.tunes)
         
         tune = self.parse_tune(line)
@@ -147,25 +156,33 @@ class LearnLineParser(LineParser):
         return self
 
 class PracticeLineParser(LineParser):
+    def __str__(self):
+        return "Practice parser"
+    
     def parse_line(self, line):
-        if line.strip(':\t ') == "REELS":
+        if line.strip() == "REELS:":
             return LearnedTuneParser(self.tunes, "reel")
 
         tune = self.parse_tune(line)
-        tune.status = 2
+        if tune:
+            tune.status = 2
 
         self.add_tune(tune)
 
         return self
 
 class LearnedTuneParser(LineParser):
-    def __init__(self, tune_type):
+    def __init__(self, tunes, tune_type):
+        super().__init__(tunes)
         self.tune_type = tune_type
         self.key = None
+    
+    def __str__(self):
+        return "Learned parser"
 
     def match_key(self, line):
         pattern = r'^[A-G]#?(m)?$'
-        return re.match(line)
+        return re.match(pattern, line)
     
     def match_tune_type(self, line):
         pattern = r'(REELS|JIGS|HORNPIPES|POLKAS)'
@@ -179,10 +196,14 @@ class LearnedTuneParser(LineParser):
         
         match = self.match_tune_type(line)
         if match:
-            self.tune_type = match.group()
+            self.tune_type = match.group().lower()[:-1] # e.g. REELS -> reel
             return self
         
         tune = self.parse_tune(line)
+        if tune:
+            tune.type = self.tune_type
+            tune.key = self.key
+
         self.add_tune(tune)
 
         return self
