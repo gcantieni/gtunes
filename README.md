@@ -1,6 +1,6 @@
 # Track traditional tune collection
 
-Uses homebrew python3 installation.
+Uses homebrew python3 installation and homebrew fzf
 
 ### Commentary
 Ideally it should be quite easy to add a tune, and also quite easy to update the tune in the future. But getting in a tune that I want to be practicing seems like a quite desirable feature. Eventually I want to be able to do this from my phone with just a name.
@@ -16,9 +16,9 @@ e.g. FiddleStatus field if I pick up fiddle.
 
 ### features
 - [x] store tunes in a standard format
-- [ ] display a given tune
-- [ ] consume a tune list with standard format
-- [ ] make sets from tune list (with completion)
+- [x] display a given tune
+- [x] consume a tune list with standard format
+- [ ] make sets from tune list (with fzf completion)
 - [ ] show what sets a tune is in
 - [ ] show the abc notation as image
 - [ ] display tunes that should be learned
@@ -54,3 +54,19 @@ represents a collection of tunes that goes well together
 
 TuneSet
 - tunes: array of Tune objects
+
+### Plaintext tune list
+
+The current format that is expected to be consumed by the parsing algorithm is as follows:
+
+Expects something like:
+LEARN:
+    - tunes
+PRACTICE:
+    - tunes
+REELS:
+A
+    - tunes
+JIGS:
+G
+    - tunes
