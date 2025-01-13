@@ -22,15 +22,17 @@ class Tune:
         ret = f"Name: {self.name}"
         if self.type != "":
             ret += f", Type: {self.type}"
+        ret += f", Status: {self.status}"
+        if self.key:
+            ret += f", Key: {self.key}"
         if self.mp3 is not None:
             ret += f", mp3: {self.mp3}"
-        ret += f", Status: {self.status}"
         if self.abc != "":
             ret += f"\nABC: {self.abc}"
         if len(self.comments) > 0:
-            ret += "\nComments: "
-            for comment in self.comments:
-                ret += f"{comment}\n"
+            ret += f"\nComments: {self.comments[0]}"
+            for comment in self.comments[1:]:
+                ret += f", {comment}"
         return ret
 
 class TuneListConsumer:
@@ -55,16 +57,14 @@ class TuneListConsumer:
     def parse(self):
         with open(args.filepath, "r") as file:
             for line in file:
-                #print(f"parse: passing in line {line}")
                 new_state = self.state.parse_line(line)
-                if new_state != self.state:
-                    print(f"Going from {self.state} to {new_state}")
                 self.state = self.state.parse_line(line)
-        
-        for tune in self.tunes:
-            print(f"{self.tunes[tune]}")
 
         return self.tunes
+    
+    def print_tunes(self):
+        for tune in self.tunes:
+            print(f"{self.tunes[tune]}")
     
 class LineParser:
     def __init__(self, tunes):
@@ -78,8 +78,7 @@ class LineParser:
         pass
 
     def add_tune(self, tune):
-        if tune:
-            self.tunes[tune.name] = tune
+        self.tunes[tune.name] = tune
 
     def parse_tune(self, line):
         line_parts = line.split("-")
@@ -127,7 +126,6 @@ class LineParser:
         return tune
 
 class StartLineParser(LineParser):
-
     def __str__(self):
         return "Start parser"
     
@@ -151,7 +149,8 @@ class LearnLineParser(LineParser):
             return PracticeLineParser(self.tunes)
         
         tune = self.parse_tune(line)
-        self.add_tune(tune)
+        if tune:
+            self.add_tune(tune)
 
         return self
 
@@ -166,8 +165,7 @@ class PracticeLineParser(LineParser):
         tune = self.parse_tune(line)
         if tune:
             tune.status = 2
-
-        self.add_tune(tune)
+            self.add_tune(tune)
 
         return self
 
@@ -181,8 +179,8 @@ class LearnedTuneParser(LineParser):
         return "Learned parser"
 
     def match_key(self, line):
-        pattern = r'^[A-G]#?(m)?$'
-        return re.match(pattern, line)
+        pattern = r'[A-G]#?(m)?( modal)?'
+        return re.search(pattern, line)
     
     def match_tune_type(self, line):
         pattern = r'(REELS|JIGS|HORNPIPES|POLKAS)'
@@ -203,8 +201,7 @@ class LearnedTuneParser(LineParser):
         if tune:
             tune.type = self.tune_type
             tune.key = self.key
-
-        self.add_tune(tune)
+            self.add_tune(tune)
 
         return self
 
@@ -225,6 +222,7 @@ def list(args):
 def consume(args):
     parser = TuneListConsumer(args.filepath)
     parser.parse()
+    parser.print_tunes()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Add and manipulate traditional tunes.")
