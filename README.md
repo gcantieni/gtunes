@@ -50,6 +50,7 @@ This also means that I should key not based on tune name but rather on a guid.
     - hop jig
 - abc: string array. abc notation for tune, with different versions. first member of the list is the default tune version displayed.
 - status: how well i know it. this could be sourced from anki in the future. can be simple int from 1-5, 1 being don't know it at all, 5 means i can start it from another tune with no prompting.
+- starred: whether it is an emphasized tune, one i currently like
 - tradition:
     - irish
     - old time
