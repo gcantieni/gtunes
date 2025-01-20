@@ -27,6 +27,9 @@ This also means that I should key not based on tune name but rather on a guid.
 - [x] store tunes in a standard format
 - [x] display a given tune
 - [x] consume a tune list with standard format
+- [x] search thesession for tune melodies
+- [ ] store abc notation for tune for offline viewing
+- [ ] allow the user to select which version of the tune they prefer
 - [ ] make sets from tune list (with fzf completion)
 - [ ] store tune recordings, associating them with the tune metadata
 - [ ] show what sets a tune is in

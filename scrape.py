@@ -3,7 +3,15 @@
 import requests
 from bs4 import BeautifulSoup
 
+debug=False
+
+def print_debug(debug_str):
+    global debug
+    if debug:
+        print(debug_str)
+
 def query_the_sessions(tune_name):
+    global debug
     ret = []
     split_name = [word.lower() for word in tune_name.split()]
     url = f"https://thesession.org/tunes/search?q={split_name.pop(0)}"
@@ -17,7 +25,12 @@ def query_the_sessions(tune_name):
 
     tune_items = soup.find_all('li', class_='manifest-item')
 
-    print(f"Found {len(tune_items)} tunes matching your query.")
+    if len(tune_items) == 0:
+        print_debug(f"Did not find any tunes to match tune name {tune_name}")
+
+        return {"name": None, "id": None}
+
+    print_debug(f"Found {len(tune_items)} tunes matching your query.")
     for tune_data in tune_items:
         # print(tune_data.prettify())
 
@@ -32,20 +45,29 @@ def query_the_sessions(tune_name):
 
         
 
-def get_abc(tune_id):
+def get_abc(tune_id, should_print=False):
     url = f"https://thesession.org/tunes/{tune_id}"
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
 
-    #divs = soup.find_all('div', class_='setting-abc')
     divs = soup.find_all('div', class_='notes')
-    for div in divs:
-        print(div.text)
-        #print(div.prettify())
 
-def get_abc_by_name(name):
+    return [div.text.strip() for div in divs]
+
+def get_abc_by_name(name, interactive=False):
     tunes = query_the_sessions(name)
-    get_abc(tunes[0]['id'])
+    if len(tunes) == 0:
+        return None
+    return get_abc(tunes[0]['id'])
 
-get_abc_by_name("the lark in the morning")
+
+def main():
+    abc_settings = get_abc_by_name("the lark in the morning")
+    for setting in abc_settings:
+        print(setting + "\n")
+
+if __name__ == '__main__':
+    main()
+
+
 
