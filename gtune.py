@@ -2,21 +2,18 @@
 import shelve
 import argparse
 import re
-import subprocess
 
 class Tune:
     """A traditional tune."""
-    def __init__(self, name, type="", status=1, abc="", tradition="Irish", key="", comments=None, rec="", mp3=None):
+    def __init__(self, name, type="", status=1, abc=None, tradition="Irish", key="", comments=None, rec="", mp3=None):
         self.name = name
         self.type = type
         self.status = status
         self.key = key
-        self.abc = abc
+        self.abc = [] if not abc else abc
         self.tradition = tradition
         self.mp3 = mp3
-        self.comments = []
-        if comments is not None:
-            self.comments = comments
+        self.comments = [] if not comments else comments
         self.rec = rec
     
     def __str__(self):
@@ -28,8 +25,10 @@ class Tune:
             ret += f", Key: {self.key}"
         if self.mp3 is not None:
             ret += f", mp3: {self.mp3}"
-        if self.abc != "":
-            ret += f"\nABC: {self.abc}"
+        if self.abc:
+            ret += "\nABC: \n"
+            for abc in self.abc:
+                ret += abc + "\n"
         if len(self.comments) > 0:
             ret += f"\nComments: {self.comments[0]}"
             for comment in self.comments[1:]:
@@ -180,28 +179,6 @@ class LearnedTuneParser(LineParser):
 
         return self
     
-def select_tune_fzf(tune_dict):
-    # Open a subprocess for fzf
-    process = subprocess.Popen(
-        ["fzf"], 
-        stdin=subprocess.PIPE, 
-        stdout=subprocess.PIPE, 
-        stderr=subprocess.PIPE,
-        text=True
-    )
-
-    tune_name_list = [ t for t in tune_dict ]
-
-    # Write options to fzf's stdin
-    stdout, _ = process.communicate("\n".join(tune_name_list))
-
-    # Check if a selection was made
-    if process.returncode == 0:  # fzf returns 0 if an item was selected
-        return stdout.strip()
-
-    # Another retcode indicates no tune
-    return None
-
 def add(args):
     tune = Tune(args.name)
     tune.type = args.type
