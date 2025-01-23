@@ -3,7 +3,7 @@
 from tune import Tune
 import re
 
-class TuneListConsumer:
+class TuneListParser:
     """Can consume a tune list and output a list of Tunes.
     """
     def __init__(self, file_location):

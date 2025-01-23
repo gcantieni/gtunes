@@ -5,6 +5,7 @@ import shelve
 import argparse
 import scrape
 from tune import Tune
+from parse import TuneListParser
 
 def add(args):
     tune = Tune(args.name)
@@ -23,8 +24,8 @@ def list(args):
         for name in shelf:
             print(f"{shelf[name]}")
 
-def consume(args):
-    parser = TuneListConsumer(args.infile)
+def parse(args):
+    parser = TuneListParser(args.infile)
     tunes = parser.parse()
 
     if args.outfile:
@@ -52,13 +53,13 @@ if __name__ == '__main__':
 
     # Create parsers for subcommands
     parser_add = subparsers.add_parser("add", parents=[parent_parser], help="Add a tune")
-    parser_consume = subparsers.add_parser("consume", parents=[parent_parser], help="Add list")
+    parser_parse = subparsers.add_parser("parse", parents=[parent_parser], help="Add list")
     parser_list = subparsers.add_parser("list", parents=[parent_parser], help="List tunes")
     parser_scrape = subparsers.add_parser("scrape")
 
     parser_add.set_defaults(func=add)
     parser_list.set_defaults(func=list)
-    parser_consume.set_defaults(func=consume)
+    parser_parse.set_defaults(func=parse)
     parser_scrape.set_defaults(func=scrape_tunes)
 
     parser_add.add_argument("name", type=str, help="Name of the tune")
@@ -74,8 +75,8 @@ if __name__ == '__main__':
     parser_list.add_argument("-t", dest="type", help="Type of tune (jig, reel, etc.)")
     parser_list.add_argument("-s", dest="status", help="Status of tune. How well the tune is known, int from 1-5.")
 
-    parser_consume.add_argument("infile", help="The path to the tune list to consume")
-    parser_consume.add_argument("-o", dest="outfile", help="The name of the output file (db will be appended)")
+    parser_parse.add_argument("infile", help="The path to the tune list to parse")
+    parser_parse.add_argument("-o", dest="outfile", help="The name of the output file (db will be appended)")
 
     parser_scrape.add_argument("tune_name", help="Name of tune to find abc settings of.")
 
