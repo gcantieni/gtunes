@@ -32,11 +32,17 @@ This also means that I should key not based on tune name but rather on a guid.
 - [ ] allow the user to select which version of the tune they prefer
 - [ ] make sets from tune list (with fzf completion)
 - [ ] store tune recordings, associating them with the tune metadata
+- [ ] tune pratice overlay
+  - [ ] metronome
+  - [ ] sheet music
+  - [ ] play a certain section of a recording on loop
+  - [ ] slow down recording without changing pitch
 - [ ] show what sets a tune is in
 - [ ] show the abc notation as image
 - [ ] display tunes that should be learned
 - [ ] add a tune via a url form and update home database of tunes
 - [ ] store different formats for a tune, mp3, links (starting at specific time)
+- [ ] integrate with spotify, and replay a section of a track corresponding with the tune
 - [ ] output to spreadsheet
 - [ ] output to plaintext list or cheatsheet with first few notes of each tune
 - [ ] output to anki, adding tune as a flashcard
