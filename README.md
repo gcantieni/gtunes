@@ -34,6 +34,12 @@ Spotify doesn't have a playback speed option, though there was this idea online:
 
 So perhaps I can try integrating the two. Or just learn tunes up to tempo for now
 
+It also appears this is probably the easiest way for me to get the flashcard feature working:
+
+https://foosoft.net/projects/anki-connect/
+
+I'm sure in the future I'll turn my nose up at Anki and prefer a custom solution, but for now, it syncs with my phone and seems like a generally good solution.
+
 ### features
 - [x] store tunes in a standard format
 - [x] display a given tune
