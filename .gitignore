@@ -1,6 +1,7 @@
 # .gitignore
 __pycache__/
+.cache
 *.pyc
 *.pyo
-.env/
+.env
 env_gtunes/
