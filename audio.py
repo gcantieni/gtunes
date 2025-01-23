@@ -73,7 +73,7 @@ def loop_track(track):
 
         input_thread = threading.Thread(target=listen_for_input, daemon=True)
         input_thread.start()
-        
+
         while True:
             playback = sp.current_playback()
             if not playback or stop_loop: #or not playback['is_playing']:
@@ -86,6 +86,13 @@ def loop_track(track):
             sleep(0.5)  # Check playback position every 500ms
 
 def main():
+    # TODO: streamling getting the uri
+    # open spotify search for tune name
+    # then take in the whole url from "copy as url" option and strip off the end uri
+    # save it in the tune database for the future.
+
+    # I could also have an ncurses interface for playback
+
     john_dohertys = Track("spotify:track:3XDCKy6Z5lC9SP37doE9S5", start="11", end="32")
     loop_track(john_dohertys)
 
