@@ -6,9 +6,11 @@ import argparse
 import scrape
 from tune import Tune
 from parse import TuneListParser
+import csv
+import os
 
 def add(args):
-    tune = Tune(args.name)
+    tune = Tune(0, name=args.name)
     tune.type = args.type
     tune.key = args.key
     tune.comments = [ args.comment ]
@@ -29,11 +31,24 @@ def parse(args):
     tunes = parser.parse()
 
     if args.outfile:
-        with shelve.open(args.outfile) as shelf:
-            for name in tunes:
-                shelf[name] = tunes[name]
-    
-        print(f"Saved {len(tunes)} tunes to {args.outfile}.db")
+        path, ext = os.path.splitext(args.outfile)
+
+        if ext == '.csv':
+            with open(args.outfile, 'w') as csvfile:
+                tunewriter = csv.writer(csvfile)
+                print("Writing tunes to CSV file")
+                tunewriter.writerow(["id", "name", "type", "status", "key", "comments"])
+                for name, tune in tunes.items():
+                    comments_str = ""
+                    for c in tune.comments:
+                        comments_str += c + "\n"
+                    tunewriter.writerow([tune.id, tune.name, tune.type, tune.status, tune.key, comments_str])
+        else: 
+            with shelve.open(args.outfile) as shelf:
+                for name in tunes:
+                    shelf[name] = tunes[name]
+        
+            print(f"Saved {len(tunes)} tunes to {args.outfile}.db")
     else:
         parser.print_tunes()
 

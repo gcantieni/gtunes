@@ -3,6 +3,8 @@
 from tune import Tune
 import re
 
+current_id = 0
+
 class TuneListParser:
     """Can consume a tune list and output a list of Tunes.
     """
@@ -12,7 +14,7 @@ class TuneListParser:
         self.state = StartLineParser(self.tunes)
 
     def parse(self):
-        with open(args.infile, "r") as file:
+        with open(self.file_location, "r") as file:
             for line in file:
                 new_state = self.state.parse_line(line)
                 self.state = self.state.parse_line(line)
@@ -50,11 +52,14 @@ class LineParser:
         # These I can parse slightly differently. They will look like: [[BlackPats.m4a]]
         m4a_pattern = r'\[\[(.*?)\.m4a\]\]'
         m4a_match = re.match(m4a_pattern, name)
+        global current_id
         if m4a_match:
             stripped_name = m4a_match.group(1)
-            tune = Tune(stripped_name, mp3=name.strip('[]'))
+            tune = Tune(current_id, name=stripped_name, mp3=name.strip('[]'))
+            current_id += 1
         else:
-            tune = Tune(name)
+            tune = Tune(current_id, name=name)
+            current_id += 1
 
         if len(line_parts) == 1:
             return tune

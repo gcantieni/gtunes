@@ -3,7 +3,8 @@
 
 class Tune:
     """A traditional tune."""
-    def __init__(self, name, type="", status=1, abc=None, tradition="Irish", key="", comments=None, rec="", mp3=None):
+    def __init__(self, id, name="", type="", status=1, abc=None, tradition="Irish", key="", comments=None, rec="", mp3=None):
+        self.id = id
         self.name = name
         self.type = type
         self.status = status
@@ -15,7 +16,9 @@ class Tune:
         self.rec = rec
     
     def __str__(self):
-        ret = f"Name: {self.name}"
+        ret = f"ID: {self.id}"
+        if self.name != "":
+            ret = f"Name: {self.name}"
         if self.type != "":
             ret += f", Type: {self.type}"
         ret += f", Status: {self.status}"
