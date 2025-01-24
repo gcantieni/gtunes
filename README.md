@@ -49,10 +49,11 @@ I'm sure in the future I'll turn my nose up at Anki and prefer a custom solution
 - [ ] allow the user to select which version of the tune they prefer
 - [ ] make sets from tune list (with fzf completion)
 - [ ] store tune recordings, associating them with the tune metadata
+- [ ] search TheSession for sets involving a tune and play them in succession to select a good recording
 - [ ] tune pratice overlay
   - [ ] metronome
   - [ ] sheet music
-  - [ ] play a certain section of a recording on loop
+  - [x] play a certain section of a recording on loop
   - [ ] slow down recording without changing pitch
 - [ ] show what sets a tune is in
 - [ ] show the abc notation as image
