@@ -5,8 +5,6 @@ import os
 from time import sleep
 import threading
 
-stop_loop = False
-
 def time_to_ms(time_str):
     if time_str.find(":") != -1:
         minutes, seconds = map(int, time_str.split(':'))
@@ -18,8 +16,8 @@ def time_to_ms(time_str):
 class Track:
     """An audio track."""
     def __init__(self, uri, start=None, end=None):
-        self.uri = uri
-        self.start = time_to_ms(start) if start else start
+        self.uri = "spotify:track:" + uri
+        self.start = time_to_ms(start) if start else 0
         self.end = time_to_ms(end) if end else end
 
 def connect_to_spotify():
@@ -36,8 +34,7 @@ def connect_to_spotify():
     
     return sp
 
-def list_artist_albums():
-    sp = connect_to_spotify()
+def list_artist_albums(sp):
     # example code from spotipy documentation
     # but with dallahan
     dallahan_uri = 'spotify:artist:1MfVe0OhbAVIhlXv5yrOUo'
@@ -50,8 +47,7 @@ def list_artist_albums():
     for album in albums:
         print(album['name'])
 
-def play_track(track):
-    sp = connect_to_spotify()
+def play_track(track, sp):
     sp.start_playback(uris=[track.uri], position_ms=track.start)
 
 
@@ -63,7 +59,9 @@ def listen_for_input():
             stop_loop = True
             break
 
-def loop_track(track):
+stop_loop = False
+
+def loop_track(track, sp):
     sp = connect_to_spotify()
     sp.start_playback(uris=[track.uri], position_ms=track.start)
 
@@ -85,16 +83,84 @@ def loop_track(track):
                 sp.start_playback(uris=[track.uri], position_ms=track.start)
             sleep(0.5)  # Check playback position every 500ms
 
+def _print_results(results):
+    for i in range(len(results)):
+        r = results[i]
+        print(f"{i}: {r['name']} by {r['artists'][0]['name']}")
+
+def _print_help_prompt():
+    print("<int>: play track, a: accept track, s10: start at 10, e20 end at 20, p print tunes, q quit, h help: ")
+
+def search_for_track(track_name, sp):
+    results = sp.search(track_name)
+    results = results['tracks']['items'] # I don't care much about anything but the track data
+
+    _print_results(results)
+    _print_help_prompt()
+
+    save_track = False
+    track = None
+    while True:
+        t = input("tune> ").strip().lower()
+        try:
+            t = int(t)
+
+            selected_result = results[t]
+            print(f"Playing {selected_result['name']}")
+            track = Track(selected_result['id'])
+
+            play_track(track, sp)
+        except ValueError:
+            if t == "a":
+                save_track = True
+                break
+            elif t == "q":
+                save_track = False
+                break
+            elif t == "h":
+                _print_help_prompt()
+                continue
+            elif t == "p":
+                _print_results(results)
+                continue
+            elif t[0] == "s":
+                t = t[1:]
+                try:
+                    start = int(t)
+                    print(f"Setting start time to {start}")
+                    track.start = start
+                except ValueError:
+                    print(f"Invalid start time {t}")
+            elif t[0] == "e":
+                t = t[1:]
+                try:
+                    end = int(t)
+                    print(f"Setting end time to {end}")
+                    track.end = start
+                except ValueError:
+                    print(f"Invalid end time {t}")
+    if not save_track:
+        print("you've chosen not to save track")
+    else:
+        print("you've chosen to save track. would you like to loop it?")
+
+        i = input("y/n")
+        if i == "y":
+            loop_track(track, sp)
+        else:
+            print("so long~")
+
+
 def main():
-    # TODO: streamling getting the uri
-    # open spotify search for tune name
-    # then take in the whole url from "copy as url" option and strip off the end uri
     # save it in the tune database for the future.
 
     # I could also have an ncurses interface for playback
 
-    john_dohertys = Track("spotify:track:3XDCKy6Z5lC9SP37doE9S5", start="11", end="32")
-    loop_track(john_dohertys)
+    sp = connect_to_spotify()
+    # john_dohertys = Track("spotify:track:3XDCKy6Z5lC9SP37doE9S5", start="11", end="32")
+    # loop_track(john_dohertys, sp)
+
+    search_for_track("John Dohertys", sp)
 
 if __name__ == '__main__':
     main()
