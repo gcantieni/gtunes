@@ -60,11 +60,57 @@ def get_abc_by_name(name, interactive=False):
         return None
     return get_abc(tunes[0]['id'])
 
+# TODO: get recordings for tune
+# go to thesession.org/tune/<tuneid>/recording
+# for each of those recordings, go to
+# thesession.org/recordings/<recordingid>
+# find <ol class="manifest-inventory">
+# iterate through the sub <li> attributes
+# find <a-preview data-tune-id="<tuneid>">
+# return the recording name, artist, and track number
+# this can then be used to find the album on e.g. Spotify
+# and play the corresponding piece.
+def find_track_number(recording_id, tune_id):
+    response = requests.get(f"https://thesession.org/recordings/{recording_id}")
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    track_number = None
+    tune_number = None
+    tracks = soup.find_all("li", class_="manifest-item")
+    for i, track in enumerate(tracks, 1):
+        track_tunes = track.find_all("a-preview")
+        for j, tt in enumerate(track_tunes, 1):
+            if int(tt["data-tuneid"]) == tune_id:
+                print(f"Found tune track {i}. It is number {j} in the set.")
+                track_number = i
+                tune_number = j
+    return track_number, tune_number
+
+def scrape_recordings(tune_id):
+    response = requests.get(f"https://thesession.org/tunes/{tune_id}/recordings")
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    recording_links = soup.find_all("a", class_="manifest-item-title")
+    
+    output = {}
+    for li in recording_links:
+        name = li.text
+        href = li["href"]
+        # e.g. /recordings/3192?tune_id=3210
+        rec_id = href.split("?")[0].split("/")[2]
+
+        track_number, tune_number = find_track_number(rec_id, tune_id)
+
+        output[name] = {"track_number": track_number, "tune_number": tune_number}
+
+    print(output)
 
 def main():
-    abc_settings = get_abc_by_name("the lark in the morning")
-    for setting in abc_settings:
-        print(setting + "\n")
+    # abc_settings = get_abc_by_name("the lark in the morning")
+    # for setting in abc_settings:
+    #     print(setting + "\n")
+    scrape_recordings(3210)
+    # find_track_number(7614, 3210)
 
 if __name__ == '__main__':
     main()
