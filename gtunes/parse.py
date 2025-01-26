@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from tune import Tune
+from gtunes import tune
 import re
 
 current_id = 0
@@ -47,7 +47,7 @@ class LineParser:
         
         name = line_parts[0].strip()
 
-        tune = None
+        this_tune = None
         # Some of my names are actually audio file names.
         # These I can parse slightly differently. They will look like: [[BlackPats.m4a]]
         m4a_pattern = r'\[\[(.*?)\.m4a\]\]'
@@ -55,14 +55,14 @@ class LineParser:
         global current_id
         if m4a_match:
             stripped_name = m4a_match.group(1)
-            tune = Tune(current_id, name=stripped_name, mp3=name.strip('[]'))
+            this_tune = tune.Tune(current_id, name=stripped_name, mp3=name.strip('[]'))
             current_id += 1
         else:
-            tune = Tune(current_id, name=name)
+            this_tune = tune.Tune(current_id, name=name)
             current_id += 1
 
         if len(line_parts) == 1:
-            return tune
+            return this_tune
         
         metadata = line_parts[1]
         metadata = metadata.split(",")
@@ -75,14 +75,14 @@ class LineParser:
             type_match = re.search(type_pattern, md)
 
             if key_match:
-                tune.key = key_match.group()
+                this_tune.key = key_match.group()
             if type_match:
-                tune.type = type_match.group()
+                this_tune.type = type_match.group()
             
             if not key_match and not type_match:
-                tune.comments.append(md)
+                this_tune.comments.append(md)
         
-        return tune
+        return this_tune
 
 class StartLineParser(LineParser):
     def parse_line(self, line):

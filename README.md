@@ -40,6 +40,20 @@ https://foosoft.net/projects/anki-connect/
 
 I'm sure in the future I'll turn my nose up at Anki and prefer a custom solution, but for now, it syncs with my phone and seems like a generally good solution.
 
+### Imagined workflows
+
+*Learn tunes off an album*:
+There's an album I really like. It has annoying track names that don't reveal the tunes on the album. I enter the album name and it downloads the metadata for the album. I then enter an overlay that asks which tracks to play. With each track it reveals both the track name and the tunes in that album. I play a track. Within the "learn from track" overlay, I can select any of the three tunes, enter its start and end time, and add it to my tune database. I can loop the tune after entering its start and end time, and if its a supported format I can slow the tune down. Once learned, I can update its learn status in the database (it would be nice if this was satisfying, maybe it could change color?).
+
+*Find a good recording of a tune*:
+Input a tune name, scrape off the session recordings and track numbers for the tune, then go to spotify and play them in succession. The user can indicate which one is good, and that information can be saved with the tune in the tune database.
+
+*Write sets with your tunes:*
+Filter by tunes you know but aren't in a set. Filter by tunes that are "starred" meaning you like them a lot right now. Look at compatible keys. Mark a few of them and write them into a set. This information is stored in the tune database, and they are backlinked so that the tunes "know" what sets they are in, just as the sets "know" what tunes are in them. Go to the "sets" overlay. It can be sorted by date added, so you can practice recently added sets. The set's should be editable as well, with completion, from your batch of tunes.
+
+*Strengthen your recall:*
+You hear a great tune in the session. You're fingers even know it! But you've forgotten the name and you forget you even know it. You ask someone for the name. You open the app/website overlay on your phone, and write down the name, and send it off. It's put in an "inbox" somewhere of tunes that need to be "namified". Later you clear the inbox: you find a good recording of the tune (or supply one from your phone), select and save abc notation for the tune. Then the tune with the recording and/or abc is added automatically to Anki under your "Tunes" deck. The recall will be strengthened. You can also "star" the tune meaning you currently like it and want to add it to sets and emphasize practicing it.
+
 ### features
 - [x] store tunes in a standard format
 - [x] display a given tune

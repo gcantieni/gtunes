@@ -3,22 +3,22 @@
 
 import shelve
 import argparse
-import scrape
-from tune import Tune
-from parse import TuneListParser
+from gtunes import tune
+from gtunes import parse
+from gtunes import scrape
 import csv
 import os
 
 def add(args):
-    tune = Tune(0, name=args.name)
-    tune.type = args.type
-    tune.key = args.key
-    tune.comments = [ args.comment ]
+    this_tune = this_tune.Tune(0, name=args.name)
+    this_tune.type = args.type
+    this_tune.key = args.key
+    this_tune.comments = [ args.comment ]
 
-    print(f"Adding tune: {tune}")
+    print(f"Adding tune: {this_tune}")
 
     with shelve.open(args.list_location) as shelf:
-        shelf[tune.name] = tune
+        shelf[this_tune.name] = this_tune
 
 def list(args):
     with shelve.open(args.list_location) as shelf:
@@ -27,7 +27,7 @@ def list(args):
             print(f"{shelf[name]}")
 
 def parse(args):
-    parser = TuneListParser(args.infile)
+    parser = parse.TuneListParser(args.infile)
     tunes = parser.parse()
 
     if args.outfile:
@@ -57,7 +57,7 @@ def scrape_tunes(args):
     for abc in tune_abc:
         print(abc + "\n")
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser(description="Add and manipulate traditional tunes.")
 
     subparsers = parser.add_subparsers(dest="command", help="Subcommands")
@@ -100,3 +100,6 @@ if __name__ == '__main__':
         args.func(args)
     else:
         parser.print_help()
+
+if __name__ == '__main__':
+    main()

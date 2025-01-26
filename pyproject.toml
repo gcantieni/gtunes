@@ -1,0 +1,16 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gtunes"
+version = "2024.1.26"
+readme = "README.md"
+dependencies = [
+    "beautifulsoup4",
+    "requests",
+    "spotipy",
+]
+
+[project.scripts]
+gtn = "gtunes.scripts.cli:main"

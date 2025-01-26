@@ -4,5 +4,7 @@ __pycache__/
 *.pyc
 *.pyo
 .env
+.venv
+.envrc
+.direnv
 .DS_Store
-env_gtunes/
