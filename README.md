@@ -1,9 +1,7 @@
 # Track and learn traditional Irish tunes
 
 ### Installation
-External dependencies:
-
-fzf
+External dependencies:`fzf`, `python3`
 
 Installation:
 
@@ -54,9 +52,11 @@ Overall, the feeling I want to inspire is a satisfied feeling of hoarding. I wan
 
 ### Plaintext tune list spec
 
-The current format that is expected to be consumed by the parsing algorithm is as follows:
+I have written a parser for the current way I write my tune list so that it can be extracted. The current format that is expected to be consumed by the parsing algorithm is as follows:
 
 Expects something like:
+
+```
 LEARN:
     - tunes
 PRACTICE:
@@ -67,3 +67,11 @@ A
 JIGS:
 G
     - tunes
+```
+
+where each tune is of the form:
+
+```
+- Tune Name- comment1, comment2, key, link
+```
+where the comments, key, and link are all jumbled together, and key is somthing of the form `[A,B,C,D,E,F,G][m][modal]`
