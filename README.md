@@ -1,113 +1,58 @@
-# Track traditional tune collection
+# Track and learn traditional Irish tunes
 
-Uses homebrew python3 installation and homebrew fzf.
-An python3 virtual environment is used and can be installed using the requirements.txt file.
+### Installation
+External dependencies:
 
-### Commentary
-Ideally it should be quite easy to add a tune, and also quite easy to update the tune in the future. But getting in a tune that I want to be practicing seems like a quite desirable feature. Eventually I want to be able to do this from my phone with just a name.
+fzf
 
-here's some good ideas: https://thesession.org/discussions/46809
+Installation:
 
-easyabc is an old program that has some good features:
-https://easyabc.sourceforge.net/
+clone the repo
 
-could also have which instruments a tune is mastered on.
-e.g. FiddleStatus field if I pick up fiddle.
+```sh
+cd gtunes
+pip -m venv .venv
+. .venv/bin/activate
 
-Found an option for abc display, and flash cards:
-https://github.com/abcjs-music/obsidian-plugin-abcjs
-coupled with
-https://github.com/st3v3nmw/obsidian-spaced-repetition
+pip install -t requirements.txt
 
-This keeps me in the plaintext world which is convenient and nice.
+pip install -e .
 
-Though I do also want to store all of my audio files, potentially bare and potentially with tune.
-This also means that I should key not based on tune name but rather on a guid.
+gtn -h
+```
 
-The ultimate goal of this app is to actually practice tunes. To start I can export tunes into a flashcard app and a sheet music display app. Eventually I could integrate these features directly into the app, with a custom spaced repetition algorithm and built in abc notation viewer.
+### Goal and vibe
+This is currently designed as a specifically me-oriented app to reduce the friction in the process of maintaining a list of Irish tunes that I know, and using that list to learn new Irish tunes, generally from recordings.
 
-Because it is an aural tradition, one of the most important features in practicing is the ability to playback audio. This will probably involve the spotify API for many of these tunes since I don't have a local copy for most of them, though this would be a good goal. I want to be able to loop a certain section of a spotify track.
+### Friction points in my current process
+Currently I have a big note with a "Learn" section (for tunes that I don't know at all), a "Practice" section (for tunes that I know at a session if someone starts playing, but I can't start), and a section of tunes I know properly, organized by type and then by key. I have another text document of chaotically written out sets. I have lots of voice memos taken within sessions. I have mp3s of music I've purchased. I have spotify playlists of tunes I want to learn. I have lots of albums of Irish music that I've added to my library and vaguely want to learn.
 
-Spotify doesn't have a playback speed option, though there was this idea online:
+Specific friction points in my process: (I might not be able to solve all of these but it's good to list them all out)
+- "Namifying:" learning to recall a tune based on its name. This greatly helps playing tunes in sessions. I've found the best way to do this is flash cards and spaced repetition. But to make a flash card requires me to go to online, search the tune, select a version, take a screen shot, and paste this in. This gets repetitive when I want to do it to many tunes, and it's largely a rote process that could be automated.
+- Finding a good recording of a tune to learn: I often have to go to TheSession.org and look up the tune, and one by one search for the recordings on spotify, and play little snippets to find a good recording. I often forget what a good recording is, and lose my place it.
+- Saving and organizing my own recordings of tunes. I have a big mass of voice memos on my phone that I never go back to listen to, because it feels too chaotic--I forget they exist. The process feels combersome to go and manually search through my voice memos for God-only-knows-what-I've-called-it.
+- Thinking of sets: I often forget to think about this or write it down. I think because I forget what tune is already in sets that I've written and what isn't, some tunes are in multiple sets. I also forget what tune I want to put in more sets or am liking right now. Right now I write the tune hopefully in my "sets" note and hope I look at it sometime and think about other tunes to do so.
+- Tracking how well I know a tune: Right now I have to move a tune around in my tune list a bunch, first from the "Learn", then to the "Practice", and finally into the right section of my "Know" list. It always goes the same way, and it could be much simpilar and involve less cut-and-pasting.
+- Tracking recordings that I want to learn: Sometimes I just LOVE an album and I want to learn everything off of it. But I forget until I hear that album again. Sometimes if I'm in the right space I'll have a thesession window open trying to figure out what tunes they're playing and I'll write: Allistrum’s March, link to thesession abc, 14 kitty lie over. I manually form this link between the official name for a tune, the recording and the tune.
+- Have all the information if I need it, but limit information if I don't: Sometimes I just want a simple list of tunes, sometimes I want to get all my Em tunes, sometimes I want just my jigs, sometimes I want an intersection of these things, sometimes I want to sheet music and the spotify recording and the youtube video. It depends on the context. My plaintext list annoys me when I wish I'd saved the spotify link I learned it from, but that stuff clutters up my list when I'm just looking through it.
 
-> If you have audio files or streams, use media players like VLC or custom players built with frameworks like Web Audio API (for web-based applications) that allow playback speed control.
+Overall, the feeling I want to inspire is a satisfied feeling of hoarding. I want to be able to just dump tunes, recordings, voice memos, and names into my tune database and feel like it is just additive, and like I can actually use these things I'm saving. Right now I'm saving, but the rate at which I uset he stuff is just a bit low.
 
-So perhaps I can try integrating the two. Or just learn tunes up to tempo for now
+### Minimum viable product
+- [ ] make flashcards: with the name or thesession id as input, take the first version off the session, extract the first abc version, and put it on an Anki flash card to be learned.
+- [ ] find spotify recordings of a tune and allow the user to quickly cycle through them to find a favorite.
+- [ ] maintain a tune database and export to csv and plaintext
 
-It also appears this is probably the easiest way for me to get the flashcard feature working:
+### Nice to have
+- [ ] save a voice memo or other recording with the tune in the tune database
+- [ ] save a playlist of favorite recordings of a tune within the app
+- [ ] add to the tune database from phone either through todoist integration, synced plaintext note, a phone app, or a web request
+- [ ] store a list of sets that back links to each tune (use obsidian?)
+- [ ] built in metronome
+- [ ] built in slow-down feature for mp3s of tunes
+- [ ] store my own variations of a tune in abc or mp3 form
 
-https://foosoft.net/projects/anki-connect/
-
-I'm sure in the future I'll turn my nose up at Anki and prefer a custom solution, but for now, it syncs with my phone and seems like a generally good solution.
-
-### Imagined workflows
-
-*Learn tunes off an album*:
-There's an album I really like. It has annoying track names that don't reveal the tunes on the album. I enter the album name and it downloads the metadata for the album. I then enter an overlay that asks which tracks to play. With each track it reveals both the track name and the tunes in that album. I play a track. Within the "learn from track" overlay, I can select any of the three tunes, enter its start and end time, and add it to my tune database. I can loop the tune after entering its start and end time, and if its a supported format I can slow the tune down. Once learned, I can update its learn status in the database (it would be nice if this was satisfying, maybe it could change color?).
-
-*Find a good recording of a tune*:
-Input a tune name, scrape off the session recordings and track numbers for the tune, then go to spotify and play them in succession. The user can indicate which one is good, and that information can be saved with the tune in the tune database.
-
-*Write sets with your tunes:*
-Filter by tunes you know but aren't in a set. Filter by tunes that are "starred" meaning you like them a lot right now. Look at compatible keys. Mark a few of them and write them into a set. This information is stored in the tune database, and they are backlinked so that the tunes "know" what sets they are in, just as the sets "know" what tunes are in them. Go to the "sets" overlay. It can be sorted by date added, so you can practice recently added sets. The set's should be editable as well, with completion, from your batch of tunes.
-
-*Strengthen your recall:*
-You hear a great tune in the session. You're fingers even know it! But you've forgotten the name and you forget you even know it. You ask someone for the name. You open the app/website overlay on your phone, and write down the name, and send it off. It's put in an "inbox" somewhere of tunes that need to be "namified". Later you clear the inbox: you find a good recording of the tune (or supply one from your phone), select and save abc notation for the tune. Then the tune with the recording and/or abc is added automatically to Anki under your "Tunes" deck. The recall will be strengthened. You can also "star" the tune meaning you currently like it and want to add it to sets and emphasize practicing it.
-
-### features
-- [x] store tunes in a standard format
-- [x] display a given tune
-- [x] consume a tune list with standard format
-- [x] search thesession for tune melodies
-- [ ] store abc notation for tune for offline viewing
-- [ ] allow the user to select which version of the tune they prefer
-- [ ] make sets from tune list (with fzf completion)
-- [ ] store tune recordings, associating them with the tune metadata
-- [ ] search TheSession for sets involving a tune and play them in succession to select a good recording
-- [ ] tune pratice overlay
-  - [ ] metronome
-  - [ ] sheet music
-  - [x] play a certain section of a recording on loop
-  - [ ] slow down recording without changing pitch
-- [ ] show what sets a tune is in
-- [ ] show the abc notation as image
-- [ ] display tunes that should be learned
-- [ ] add a tune via a url form and update home database of tunes
-- [ ] store different formats for a tune, mp3, links (starting at specific time)
-- [ ] integrate with spotify, and replay a section of a track corresponding with the tune
-- [ ] output to spreadsheet
-- [ ] output to plaintext list or cheatsheet with first few notes of each tune
-- [ ] output to anki, adding tune as a flashcard
-- [ ] keep track of sets of tunes
-
-### Tune object
-
-- name: name of tune
-- type: one of
-    - jig
-    - reel
-    - barn dance
-    - slip jig
-    - hop jig
-- abc: string array. abc notation for tune, with different versions. first member of the list is the default tune version displayed.
-- status: how well i know it. this could be sourced from anki in the future. can be simple int from 1-5, 1 being don't know it at all, 5 means i can start it from another tune with no prompting.
-- starred: whether it is an emphasized tune, one i currently like
-- tradition:
-    - irish
-    - old time
-    - french canadian
-- composer: string
-- comments: string array of additional comments about the tune
-- date added: date string
-- date updated: date string
-
-### Set object
-represents a collection of tunes that goes well together
-
-TuneSet
-- tunes: array of Tune objects
-
-### Plaintext tune list
+### Plaintext tune list spec
 
 The current format that is expected to be consumed by the parsing algorithm is as follows:
 
