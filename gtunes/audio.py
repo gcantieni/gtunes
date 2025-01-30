@@ -35,41 +35,8 @@ def connect_to_spotify():
     
     return sp
 
-def list_artist_albums(sp):
-    # example code from spotipy documentation
-    # but with dallahan
-    dallahan_uri = 'spotify:artist:1MfVe0OhbAVIhlXv5yrOUo'
-    results = sp.artist_albums(dallahan_uri, album_type='album')
-    albums = results['items']
-    while results['next']:
-        results = sp.next(results)
-        albums.extend(results['items'])
-
-    for album in albums:
-        print(album['name'])
-
 def play_track(track_uri, sp, retries=3, delay=5, position_ms=0):
     sp.start_playback(uris=[track_uri], position_ms=position_ms)
-    # for i in range(retries):
-    #     try:
-    #         sp.start_playback(uris=[track_uri], position_ms=position_ms)
-    #     except spotipy.exceptions.SpotifyException as e:
-    #         if e.reason == "NO_ACTIVE_DEVICE":
-    #             print("No active device found: retrying with first avialable device.")
-
-    #             devices = sp.devices()
-    #             if not devices['devices']:
-    #                 print("No devices found. Ensure spotify app is open & connected.")
-    #                 break
-    #             else:
-    #                 device_id = devices['devices'][0]['id']
-    #                 try:
-    #                     sp.start_playback(uris=[track_uri], position_ms=position_ms, device_id=device_id)
-    #                 except Exception as inner_exception:
-    #                     print(f"Encountered exception while trying to play with first available device: {inner_exception}")
-        
-    #     time.sleep(delay)
-
 
 def listen_for_input():
     global stop_loop
