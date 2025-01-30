@@ -39,7 +39,7 @@ SPOTIPY_CLIENT_SECRET='188fb8c2865d4346912cf1fd1f2e072c'
 SPOTIPY_REDIRECT_URI='http://localhost:1234'
 ```
 
-`gtn -h` should give the basic command options.
+`gtn spot -h` should give the basic spotify command options.
 
 ### Goal and vibe
 This is currently designed as a specifically me-oriented app to reduce the friction in the process of maintaining a list of Irish tunes that I know, and using that list to learn new Irish tunes, generally from recordings.
