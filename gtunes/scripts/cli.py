@@ -70,13 +70,16 @@ def spot(args):
         if args.s:
             albums = scrape.scrape_recordings(tune_id=args.s)
         else:
-            albums = scrape.scrape_recordings(tune_name=args.S)
+            albums = scrape.scrape_recordings(tune_name=args.S, limit=15)
 
         saved_albums = {}
         for album_name in albums:
             alb = audio.spot_search_albums(album_name, sp)
             if alb:
                 track_data = audio.spot_play_nth_album_track(alb['id'], albums[album_name]['track_number'], sp)
+                if not track_data:
+                    print(f"No track data for album {album_name}, skipping")
+                    continue
                 print(f"Album: {album_name}, track: {track_data['name']}")
                 user_input = input("s: save, n: next q: quit > ")
                 if user_input == "s":

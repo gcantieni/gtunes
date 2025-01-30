@@ -5,6 +5,8 @@ import os
 from time import sleep
 import threading
 import time
+from Levenshtein import distance
+
 
 def time_to_ms(time_str):
     if time_str.find(":") != -1:
@@ -35,8 +37,18 @@ def connect_to_spotify():
     
     return sp
 
-def play_track(track_uri, sp, retries=3, delay=5, position_ms=0):
-    sp.start_playback(uris=[track_uri], position_ms=position_ms)
+def play_track(track_uri, sp, retries=3, delay=7, position_ms=0):
+    for _ in range(retries):
+        try:
+            sp.start_playback(uris=[track_uri], position_ms=position_ms)
+        except spotipy.exceptions.SpotifyException as e:
+            if e.reason == "NO_ACTIVE_DEVICE":
+                print("Unable to determine which device to play on. Try briefly pressing play on target device.")
+                print(f"Trying again in {delay} seconds")
+                time.sleep(delay)
+            else:
+                raise e
+
 
 def listen_for_input():
     global stop_loop
@@ -78,14 +90,19 @@ def _print_results(results):
 def _print_help_prompt():
     print("<int>: play track, a: accept track, s10: start at 10, e20 end at 20, p print tunes, q quit, h help: ")
 
-# search for album_name and return URI if an exact match
+def levenshtein_string_similarity(string1, string2):
+    return 1 - (distance("Some Album Title", "Some Album Ttle") / max(len("Some Album Title"), len("Some Album Ttle")))
+
+# search for album_name
+# compare title similarity using the Levenshtein algorithm
 def spot_search_albums(album_name, sp):
     results = sp.search(album_name, type='album')
 
     for alb in results['albums']['items']:
-        if album_name.lower() == alb['name'].lower():
+        result_name = alb['name']
+        if levenshtein_string_similarity(album_name, result_name) > .8:
             return alb
-    
+
     return None
 
 # returns the track data of the track being played
@@ -93,6 +110,7 @@ def spot_play_nth_album_track(spot_album_id, track_num, sp):
     tracks = sp.album_tracks(spot_album_id)['items']
     if track_num < 1 or track_num > len(tracks):
         print(f"Track index must be between 1 and {len(tracks)}. Got {track_num}")
+        return None
 
     track_uri = tracks[track_num - 1]['uri']
 
