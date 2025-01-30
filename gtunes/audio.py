@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import os
 from time import sleep
 import threading
+import time
 
 def time_to_ms(time_str):
     if time_str.find(":") != -1:
@@ -47,8 +48,27 @@ def list_artist_albums(sp):
     for album in albums:
         print(album['name'])
 
-def play_track(track, sp):
-    sp.start_playback(uris=[track.uri], position_ms=track.start)
+def play_track(track_uri, sp, retries=3, delay=5, position_ms=0):
+    sp.start_playback(uris=[track_uri], position_ms=position_ms)
+    # for i in range(retries):
+    #     try:
+    #         sp.start_playback(uris=[track_uri], position_ms=position_ms)
+    #     except spotipy.exceptions.SpotifyException as e:
+    #         if e.reason == "NO_ACTIVE_DEVICE":
+    #             print("No active device found: retrying with first avialable device.")
+
+    #             devices = sp.devices()
+    #             if not devices['devices']:
+    #                 print("No devices found. Ensure spotify app is open & connected.")
+    #                 break
+    #             else:
+    #                 device_id = devices['devices'][0]['id']
+    #                 try:
+    #                     sp.start_playback(uris=[track_uri], position_ms=position_ms, device_id=device_id)
+    #                 except Exception as inner_exception:
+    #                     print(f"Encountered exception while trying to play with first available device: {inner_exception}")
+        
+    #     time.sleep(delay)
 
 
 def listen_for_input():
@@ -90,6 +110,28 @@ def _print_results(results):
 
 def _print_help_prompt():
     print("<int>: play track, a: accept track, s10: start at 10, e20 end at 20, p print tunes, q quit, h help: ")
+
+# search for album_name and return URI if an exact match
+def spot_search_albums(album_name, sp):
+    results = sp.search(album_name, type='album')
+
+    for alb in results['albums']['items']:
+        if album_name.lower() == alb['name'].lower():
+            return alb
+    
+    return None
+
+# returns the track data of the track being played
+def spot_play_nth_album_track(spot_album_id, track_num, sp):
+    tracks = sp.album_tracks(spot_album_id)['items']
+    if track_num < 1 or track_num > len(tracks):
+        print(f"Track index must be between 1 and {len(tracks)}. Got {track_num}")
+
+    track_uri = tracks[track_num - 1]['uri']
+
+    play_track(track_uri, sp)
+
+    return tracks[track_num - 1]
 
 def search_for_track(track_name, sp):
     results = sp.search(track_name)

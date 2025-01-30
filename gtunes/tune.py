@@ -3,7 +3,7 @@
 
 class Tune:
     """A traditional tune."""
-    def __init__(self, id, name="", type="", status=1, abc=None, tradition="Irish", key="", comments=None, rec="", mp3=None):
+    def __init__(self, id, name="", type="", status=1, abc=None, tradition="Irish", key="", comments=None, recordings=None, mp3=None):
         self.id = id
         self.name = name
         self.type = type
@@ -13,7 +13,7 @@ class Tune:
         #self.tradition = tradition # doesn't feel necessary yet since it's built around irish
         self.mp3 = mp3
         self.comments = [] if not comments else comments
-        self.rec = rec
+        self.recordings = [] if not recordings else recordings
 
     # TODO: add a build_string that will not add something if its none
     
@@ -26,8 +26,9 @@ class Tune:
         key = getattr(self, 'key', 'None')
         status = getattr(self, 'status', 'None')
         comments = getattr(self, 'comments', 'None')
+        recordings = getattr(self, 'recordings', 'None')
 
-        return f"ID: {id_}, Name: {name}, Type: {type_}, Key:{key}\nABC: {abc}, MP3: {mp3}, Status: {status}, Comments: {comments}"
+        return f"ID: {id_}, Name: {name}, Type: {type_}, Key:{key}\nABC: {abc}, MP3: {mp3}, Status: {status}, Comments: {comments}, recordings={recordings}"
 
 
 if __name__ == "__main__":

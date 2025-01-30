@@ -7,6 +7,7 @@ from gtunes import tune
 from gtunes import parse
 from gtunes import scrape
 from gtunes import db
+from gtunes import audio
 import csv
 import os
 
@@ -60,7 +61,38 @@ def scrape_tunes(args):
 
 # Find recordings for a particular tune and TODO save them to the tune database.
 def recs(args):
-    pass
+    scrape.scrape_recordings(tune_name=args.tune)
+
+def spot(args):
+    sp = audio.connect_to_spotify()
+    if args.s or args.S: # thesession time, baby
+        albums = None
+        if args.s:
+            albums = scrape.scrape_recordings(tune_id=args.s)
+        else:
+            albums = scrape.scrape_recordings(tune_name=args.S)
+
+        saved_albums = {}
+        for album_name in albums:
+            alb = audio.spot_search_albums(album_name, sp)
+            if alb:
+                track_data = audio.spot_play_nth_album_track(alb['id'], albums[album_name]['track_number'], sp)
+                print(f"Album: {album_name}, track: {track_data['name']}")
+                user_input = input("s: save, n: next q: quit > ")
+                if user_input == "s":
+                    saved_albums[album_name] = albums[album_name]
+                    saved_albums[album_name]['spot_album_id'] = alb['id']
+                elif user_input == "q":
+                    print("bye")
+                    break
+                elif user_input == "n":
+                    continue
+    # TODO: handle arg parsing up front, not here 
+    elif not args.a and not args.t:
+        print("Must specify either album or track option")
+    if args.t:
+        audio.search_for_track(args.name, sp)
+    
 
 def main():
     parser = argparse.ArgumentParser(description="Add and manipulate traditional tunes.")
@@ -103,6 +135,13 @@ def main():
     parser_recordings.set_defaults(func=recs)
     parser_recordings.add_argument("tune", help="Name fo the tune to find recordings of.")
 
+    parser_spot = subparsers.add_parser("spot", help="Play albums from spotify.")
+    parser_spot.set_defaults(func=spot)
+    parser_spot.add_argument("-name", help="Name of track or album to be played.")
+    parser_spot.add_argument("-a", action="store_true", help="Play album")
+    parser_spot.add_argument("-t", action="store_true", help="Play track")
+    parser_spot.add_argument("-s", help="Scrape albums of thesession.org by id and search for them on spotify.")
+    parser_spot.add_argument("-S", help="Scrape albums of thesession.org by name and search for them on spotify.")
 
     args = parser.parse_args()
     if args.command:

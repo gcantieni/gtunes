@@ -54,11 +54,17 @@ def get_abc(tune_id, should_print=False):
 
     return [div.text.strip() for div in divs]
 
-def get_abc_by_name(name, interactive=False):
-    tunes = query_the_sessions(name)
+def _get_tune_id(tune_name):
+    tunes = query_the_sessions(tune_name)
     if len(tunes) == 0:
         return None
-    return get_abc(tunes[0]['id'])
+    id = tunes[0]['id']
+
+    return int(id)
+
+def get_abc_by_name(name, interactive=False):
+    return get_abc(_get_tune_id(name))
+
 
 # TODO: get recordings for tune
 # go to thesession.org/tune/<tuneid>/recording
@@ -71,6 +77,7 @@ def get_abc_by_name(name, interactive=False):
 # this can then be used to find the album on e.g. Spotify
 # and play the corresponding piece.
 def find_track_number(recording_id, tune_id):
+    print_debug(f"Finding track number for recording_id={recording_id} and tune_id={tune_id}")
     response = requests.get(f"https://thesession.org/recordings/{recording_id}")
     soup = BeautifulSoup(response.text, 'html.parser')
 
@@ -81,36 +88,52 @@ def find_track_number(recording_id, tune_id):
         track_tunes = track.find_all("a-preview")
         for j, tt in enumerate(track_tunes, 1):
             if int(tt["data-tuneid"]) == tune_id:
-                print(f"Found tune track {i}. It is number {j} in the set.")
                 track_number = i
                 tune_number = j
+
     return track_number, tune_number
 
-def scrape_recordings(tune_id):
+def scrape_recordings(tune_name=None, tune_id=None, limit=None):
+    if not tune_name and not tune_id:
+        print("Must specify either tune name or tune id")
+    
+    if not tune_id:
+        tune_id = _get_tune_id(tune_name)
+    
     response = requests.get(f"https://thesession.org/tunes/{tune_id}/recordings")
     soup = BeautifulSoup(response.text, 'html.parser')
 
     recording_links = soup.find_all("a", class_="manifest-item-title")
-    
+
+    print(f"Scraping album data for tune {tune_name if tune_name else "with id " + tune_id}...")
+
     output = {}
+    i = 0
     for li in recording_links:
+        if limit:
+            i += 1
+            if i == limit:
+                break
         name = li.text
         href = li["href"]
         # e.g. /recordings/3192?tune_id=3210
-        rec_id = href.split("?")[0].split("/")[2]
+        rec_id = int(href.split("?")[0].split("/")[2])
 
         track_number, tune_number = find_track_number(rec_id, tune_id)
 
         output[name] = {"track_number": track_number, "tune_number": tune_number}
 
-    print(output)
+    print(f"Found {len(output)} albums containing specified tune.")
+
+    return output
 
 def main():
     # abc_settings = get_abc_by_name("the lark in the morning")
     # for setting in abc_settings:
     #     print(setting + "\n")
-    scrape_recordings(3210)
+    #scrape_recordings(3210)
     # find_track_number(7614, 3210)
+    find_track_number(3613, 62)
 
 if __name__ == '__main__':
     main()
