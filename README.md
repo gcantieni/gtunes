@@ -1,12 +1,13 @@
 # Track and learn traditional Irish tunes
 
-### Installation
+### Installation and setup
 External dependencies:`fzf`, `python3`
 
 Installation:
 
-clone the repo
+Clone the repo
 
+To activate a Python virtual environment and install the dependencies:
 ```sh
 cd gtunes
 pip -m venv .venv
@@ -15,12 +16,35 @@ pip -m venv .venv
 pip install -t requirements.txt
 
 pip install -e .
+```
 
+Verify this worked with
+```sh
 gtn -h
 ```
 
+To setup spotify credentials (requires a paid spotify account):
+- Go to the developer dashboard: https://developer.spotify.com/dashboard
+- "Create App"
+    - You can enter a localhost url for the redirect url. Mine is http://localhost:1234
+    - Enter a description
+- Once it's created, go to "Settings" on the top right to get the credentials:
+    - Client ID
+    - Client Secret (click "View client secret")
+- `gtunes` keeps your credentials in a private environment file at the project root, `.env`. Paste in your credentials, e.g.:
+
+```sh
+SPOTIPY_CLIENT_ID='b604f0434d3444fbb49afce7564e52c3'
+SPOTIPY_CLIENT_SECRET='188fb8c2865d4346912cf1fd1f2e072c'
+SPOTIPY_REDIRECT_URI='http://localhost:1234'
+```
+
+`gtn -h` should give the basic command options.
+
 ### Goal and vibe
 This is currently designed as a specifically me-oriented app to reduce the friction in the process of maintaining a list of Irish tunes that I know, and using that list to learn new Irish tunes, generally from recordings.
+
+Overall, the feeling I want to inspire is a satisfied feeling of hoarding. I want to be able to just dump tunes, recordings, voice memos, and names into my tune database and feel like it is just additive, and like I can actually use these things I'm saving.
 
 ### Friction points in my current process
 Currently I have a big note with a "Learn" section (for tunes that I don't know at all), a "Practice" section (for tunes that I know at a session if someone starts playing, but I can't start), and a section of tunes I know properly, organized by type and then by key. I have another text document of chaotically written out sets. I have lots of voice memos taken within sessions. I have mp3s of music I've purchased. I have spotify playlists of tunes I want to learn. I have lots of albums of Irish music that I've added to my library and vaguely want to learn.
@@ -34,11 +58,10 @@ Specific friction points in my process: (I might not be able to solve all of the
 - Tracking recordings that I want to learn: Sometimes I just LOVE an album and I want to learn everything off of it. But I forget until I hear that album again. Sometimes if I'm in the right space I'll have a thesession window open trying to figure out what tunes they're playing and I'll write: Allistrum’s March, link to thesession abc, 14 kitty lie over. I manually form this link between the official name for a tune, the recording and the tune.
 - Have all the information if I need it, but limit information if I don't: Sometimes I just want a simple list of tunes, sometimes I want to get all my Em tunes, sometimes I want just my jigs, sometimes I want an intersection of these things, sometimes I want to sheet music and the spotify recording and the youtube video. It depends on the context. My plaintext list annoys me when I wish I'd saved the spotify link I learned it from, but that stuff clutters up my list when I'm just looking through it.
 
-Overall, the feeling I want to inspire is a satisfied feeling of hoarding. I want to be able to just dump tunes, recordings, voice memos, and names into my tune database and feel like it is just additive, and like I can actually use these things I'm saving. Right now I'm saving, but the rate at which I uset he stuff is just a bit low.
-
 ### Minimum viable product
-- [ ] make flashcards: with the name or thesession id as input, take the first version off the session, extract the first abc version, and put it on an Anki flash card to be learned.
+- [ ] make flashcards: with the name or thesession id as input, take the first version off the session, extract the first abc version, and put it on an Anki flash card to be learned, perhaps with a recording of it as well
 - [ ] find spotify recordings of a tune and allow the user to quickly cycle through them to find a favorite.
+- [ ] list all the tunes off each track of a recording on spotify
 - [ ] maintain a tune database and export to csv and plaintext
 
 ### Nice to have
