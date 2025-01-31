@@ -8,6 +8,11 @@ import time
 from Levenshtein import distance
 
 
+def print_debug(debug_str):
+    should_debug = False
+    if should_debug:
+        print(debug_str)
+
 def time_to_ms(time_str):
     if time_str.find(":") != -1:
         minutes, seconds = map(int, time_str.split(':'))
@@ -91,18 +96,23 @@ def _print_help_prompt():
     print("<int>: play track, a: accept track, s10: start at 10, e20 end at 20, p print tunes, q quit, h help: ")
 
 def levenshtein_string_similarity(string1, string2):
-    return 1 - (distance("Some Album Title", "Some Album Ttle") / max(len("Some Album Title"), len("Some Album Ttle")))
+    dist = 1 - (distance(string1, string2) / max(len(string1), len(string2)))
+    print_debug(f"Distance between {string1} and {string2} is {dist}")
+    return dist
 
 # search for album_name
 # compare title similarity using the Levenshtein algorithm
-def spot_search_albums(album_name, sp):
+def spot_search_albums(album_name, sp, artist_name=None):
     results = sp.search(album_name, type='album')
 
     for alb in results['albums']['items']:
         result_name = alb['name']
         if levenshtein_string_similarity(album_name, result_name) > .8:
-            return alb
-
+            if not artist_name:
+                return alb
+            for spot_artist in alb['artists']:
+                if levenshtein_string_similarity(artist_name, spot_artist['name']) > .8:
+                    return alb
     return None
 
 # returns the track data of the track being played
