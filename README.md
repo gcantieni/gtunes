@@ -60,12 +60,12 @@ Specific friction points in my process: (I might not be able to solve all of the
 
 ### Minimum viable product
 - [ ] make flashcards: with the name or thesession id as input, take the first version off the session, extract the first abc version, and put it on an Anki flash card to be learned, perhaps with a recording of it as well
-- [ ] find spotify recordings of a tune and allow the user to quickly cycle through them to find a favorite.
+- [x] find spotify recordings of a tune and allow the user to quickly cycle through them to find a favorite.
 - [ ] list all the tunes off each track of a recording on spotify
 - [ ] maintain a tune database and export to csv and plaintext
+- [ ] save a voice memo or other recording with the tune in the tune database
 
 ### Nice to have
-- [ ] save a voice memo or other recording with the tune in the tune database
 - [ ] save a playlist of favorite recordings of a tune within the app
 - [ ] add to the tune database from phone either through todoist integration, synced plaintext note, a phone app, or a web request
 - [ ] store a list of sets that back links to each tune (use obsidian?)
