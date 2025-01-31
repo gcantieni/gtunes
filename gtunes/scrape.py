@@ -100,28 +100,42 @@ def scrape_recordings(tune_name=None, tune_id=None, limit=None):
     if not tune_id:
         tune_id = _get_tune_id(tune_name)
     
+    print(f"Scraping album data for tune {tune_name if tune_name else "with id " + tune_id}...")
+
     response = requests.get(f"https://thesession.org/tunes/{tune_id}/recordings")
     soup = BeautifulSoup(response.text, 'html.parser')
 
-    recording_links = soup.find_all("a", class_="manifest-item-title")
+    # Each recording list
+    recording_list_items = soup.find_all("li", class_="manifest-item")
 
-    print(f"Scraping album data for tune {tune_name if tune_name else "with id " + tune_id}...")
-
+    max_items = len(recording_list_items) if not limit else min(len(recording_list_items), limit)
     output = {}
-    i = 0
-    for li in recording_links:
-        if limit:
-            i += 1
-            if i == limit:
-                break
-        name = li.text
-        href = li["href"]
-        # e.g. /recordings/3192?tune_id=3210
-        rec_id = int(href.split("?")[0].split("/")[2])
+    for i in range(max_items):
+        li = recording_list_items[i]
 
-        track_number, tune_number = find_track_number(rec_id, tune_id)
+        album_link = li.find("a", class_="manifest-item-title")
 
-        output[name] = {"track_number": track_number, "tune_number": tune_number}
+        name = album_link.text
+
+        # the id is inside an href of the form: /recordings/3192?tune_id=3210
+        href = album_link["href"]
+        album_id = int(href.split("?")[0].split("/")[2])
+
+        # the Artist is in the same list item under a span "bill-cost", perhaps
+        # because this html was reused from some commircial template. each one is
+        # a link
+        artist_name = li.find("span", class_="bill-item-cost").find("a").text
+
+        # Unfortunately, in order to find the track number we need to scrape the
+        # album page itself. this could be solved by using irishtunes.info which
+        # has the album data and track number on the same page.
+        track_number, tune_number = find_track_number(album_id, tune_id)
+
+        output[name] = {
+            "track_number": track_number, 
+            "tune_number": tune_number, 
+            "artist_name": artist_name
+        }
 
     print(f"Found {len(output)} albums containing specified tune.")
 
