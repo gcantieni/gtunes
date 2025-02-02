@@ -93,7 +93,6 @@ def spot(args):
         print("Done playing albums.")
         if saved_albums:
             print(f"Save data: {saved_albums}")
-    # TODO: handle arg parsing up front, not here 
     elif not args.a and not args.t:
         print("Must specify either album or track option")
     if args.t:

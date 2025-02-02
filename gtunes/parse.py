@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 
 from gtunes import tune
+from gtunes.db import GTune, Recording, init_db, close_db
+from dotenv import load_dotenv
+from peewee import IntegrityError
+import os
 import re
-
-current_id = 0
 
 class TuneListParser:
     """Can consume a tune list and output a list of Tunes.
@@ -14,11 +16,13 @@ class TuneListParser:
         self.state = StartLineParser(self.tunes)
 
     def parse(self):
+        init_db()
         with open(self.file_location, "r") as file:
             for line in file:
-                new_state = self.state.parse_line(line)
+                #new_state = self.state.parse_line(line)
                 self.state = self.state.parse_line(line)
 
+        close_db()
         return self.tunes
     
     def print_tunes(self):
@@ -28,6 +32,8 @@ class TuneListParser:
 class LineParser:
     def __init__(self, tunes):
         self.tunes = tunes
+        load_dotenv()
+        self.recordings_dir = os.getenv("RECORDINGS_DIR", "~/gtunes/recs")
 
     # Abstract method
     def parse_line(self, line):
@@ -36,7 +42,7 @@ class LineParser:
     def add_tune(self, tune):
         self.tunes[tune.name] = tune
 
-    def parse_tune(self, line):
+    def parse_tune(self, line) -> GTune:
         line_parts = line.split("-")
 
         if len(line_parts) < 2:
@@ -52,36 +58,38 @@ class LineParser:
         # These I can parse slightly differently. They will look like: [[BlackPats.m4a]]
         m4a_pattern = r'\[\[(.*?)\.m4a\]\]'
         m4a_match = re.match(m4a_pattern, name)
-        global current_id
         if m4a_match:
             stripped_name = m4a_match.group(1)
-            this_tune = tune.Tune(current_id, name=stripped_name, mp3=name.strip('[]'))
-            current_id += 1
-        else:
-            this_tune = tune.Tune(current_id, name=name)
-            current_id += 1
-
-        if len(line_parts) == 1:
-            return this_tune
-        
-        metadata = line_parts[1]
-        metadata = metadata.split(",")
-        for md in metadata:
-            md = md.strip()
-            key_pattern = r'[A-G]'
-            type_pattern = r'(?i)(reel|slip jig|hop jig|jig|polka|hornpipe)'
-
-            key_match = re.search(key_pattern, md)
-            type_match = re.search(type_pattern, md)
-
-            if key_match:
-                this_tune.key = key_match.group()
-            if type_match:
-                this_tune.type = type_match.group()
+            m4a_path = os.path.join(self.recordings_dir, stripped_name)
             
-            if not key_match and not type_match:
-                this_tune.comments.append(md)
-        
+            this_tune = GTune(name=stripped_name)
+            Recording.create(name=stripped_name, path=m4a_path, tune=this_tune)
+        else:
+            this_tune = GTune(name=name)
+    
+        if len(line_parts) > 1:
+            metadata = line_parts[1]
+            metadata = metadata.split(",")
+            for md in metadata:
+                md = md.strip()
+                key_pattern = r'[A-G]'
+                type_pattern = r'(?i)(reel|slip jig|hop jig|jig|polka|hornpipe)'
+
+                key_match = re.search(key_pattern, md)
+                type_match = re.search(type_pattern, md)
+
+                if key_match:
+                    this_tune.key = key_match.group()
+                if type_match:
+                    this_tune.type = type_match.group()
+                
+                if not key_match and not type_match:
+                    this_tune.comments = md
+        try:
+            this_tune.save()
+        except IntegrityError as e:
+            print(f"Duplicate name found in tune list: {this_tune.name}")
+            
         return this_tune
 
 class StartLineParser(LineParser):

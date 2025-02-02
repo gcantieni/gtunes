@@ -1,61 +1,81 @@
-import sqlite3
-import os
+from peewee import *
 
-conn = None
+db = SqliteDatabase(':memory:', pragmas={'foreign_keys': 1})
 
-def load_db():
-    global conn
-    db_path = os.getenv("TUNE_DB", "example.db")
-    conn = sqlite3.connect(db_path)
-    return conn.cursor()
+# def load_db():
+#     global conn
+#     #db_path = os.getenv("TUNE_DB", "example.db")
+def init_db():
+    global db
+    db.connect()
+    db.create_tables([GTune, Recording])
 
 def close_db():
-    global conn
-    # Commit the changes and close the connection
-    conn.commit()
-    conn.close()
+    db.close()
 
-def init_tune_db(cursor):
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS tunes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
-        status INTEGER,
-        type TEXT,
-        tune_key TEXT,
-        abc TEXT,
-        comments TEXT,
-        recordings TEXT
-    )
-    ''')
+class BaseClass(Model):
+    class Meta:
+        database = db
 
-def add_tune(id="", name="", type_="", key="", abc="", recordings=""):
-    cursor = load_db()
+# Start simple, each tune just has one recording, one spotify id, one path to an mp3
+class GTune(BaseClass):
+    name = CharField(unique=True)
+    key = CharField(null=True)
+    type = CharField(null=True)
+    status = IntegerField(null=True)
+    abc = TextField(null=True)
+    ts_id = IntegerField(null=True) # Thesession id
+    #itinfo_id = IntegerField()
+    comments = TextField(null=True)
+    from_ = TextField(null=True)
 
-    init_tune_db(cursor)
+    def __str__(self):
+        name = getattr(self, 'name', 'None')
+        id = getattr(self, 'id', 'None')
+        type_ = getattr(self, 'type', 'None')
+        abc = getattr(self, 'abc', 'None')
+        key = getattr(self, 'key', 'None')
+        status = getattr(self, 'status', 'None')
+        comments = getattr(self, 'comments', 'None')
+        #recordings = getattr(self, 'recordings', 'None')
 
-    # Insert data into the users table
-    cursor.execute('''
-    INSERT INTO tunes (name, type) VALUES (?, ?)
-    ''', (name, type_))
+        return f"ID: {id}, Name: {name}, Type: {type_}, Key: {key}\nABC: {abc}, Status: {status}, Comments: {comments}"
 
-    close_db()
 
-def list_tunes():
-    cursor = load_db()
+class Recording(BaseClass):
+    name = CharField(null=True)
+    spot_id = CharField(null=True)
+    path = CharField(null=True)
+    tune = ForeignKeyField(GTune, backref='recordings', null=True)
+    start_time_secs = IntegerField(null=True)
+    end_time_secs = IntegerField(null=True)
 
-    # Query the database
-    cursor.execute('SELECT * FROM tunes')
+def peewee():
+    db.connect()
+    db.create_tables([GTune, Recording])
 
-    # Fetch all rows from the result of the query
-    rows = cursor.fetchall()
+    lark = GTune.create(name="The Lark in the Morning", key="D", type="Jig", status=4, 
+                        comments="Classic. Probably overplayed.")
+    s = GTune.create(name="Spike Island Lasses", key="D modal", type="Reel", status=4)
+    
+    larc_rec = Recording.create(spot_id="5RZiKVsRf2Bg8y4KlJp7MH", tune=lark)
 
-    # Iterate through the results and print each row
-    for row in rows:
-        print(row)
+    
+    l = (GTune
+        .select()
+        .join(Recording)
+        .where(GTune.name == "The Lark in the Morning").get_or_none())
+    
+    print(GTune.get_by_id(1))
 
-    close_db()
 
 if __name__ == "__main__":
-    add_tune(name="Lark in the Morning", key="D", type_="jig")
-    list_tunes()
+    # c = load_db()
+    # init_tune_db(c)
+    # add_tune(c, name="Lark in the Morning", key="D", type_="jig")
+    # list_tunes(c)
+    # close_db()
+    peewee()
+
+
+
