@@ -3,24 +3,32 @@
 
 import argparse
 import shelve
-from gtunes import tune
 from gtunes import parse
 from gtunes import scrape
 from gtunes import db
 from gtunes import audio
+from gtunes.tui import tui
+from curses import wrapper
 import csv
 import os
 
+def tui_wrapper(args): # args isn't used
+    wrapper(tui)
+
 def add(args):
-    this_tune = this_tune.Tune(0, name=args.name)
+    db.init_db()
+    this_tune = db.GTune(name=args.name)
     this_tune.type = args.type
     this_tune.key = args.key
-    this_tune.comments = [ args.comment ]
+    this_tune.comments = args.comment
 
     print(f"Adding tune: {this_tune}")
 
-    with shelve.open(args.list_location) as shelf:
-        shelf[this_tune.name] = this_tune
+    this_tune.save()
+    db.close_db()
+
+def edit(args):
+    pass
 
 def list(args):
     with shelve.open(args.list_location) as shelf:
@@ -110,15 +118,23 @@ def main():
 
     # Create parsers for subcommands
 
-    parser_add = subparsers.add_parser("add", parents=[parent_parser], help="Add a tune")
+    edit_add_parent_parser = argparse.ArgumentParser(add_help=False)
+    edit_add_parent_parser.add_argument("name", type=str, help="Name of the tune")
+    edit_add_parent_parser.add_argument("-t", type=str, dest="type", help="Type of tune (jig, reel, etc.)")
+    edit_add_parent_parser.add_argument("-r", type=str, dest="recording", help="Either spotify id or path to the recording, specified as ")
+    edit_add_parent_parser.add_argument("-k", type=str, dest="key", help="Key of the tune")
+    edit_add_parent_parser.add_argument("-s", type=int, dest="status", help="Status of tune. How well the tune is known, int from 1-5.")
+    edit_add_parent_parser.add_argument("-a", type=str, dest="abc", help="ABC")
+    edit_add_parent_parser.add_argument("-c", type=str, dest="comment", help="Comment(s)")
+
+    parser_tui = subparsers.add_parser("tui", help="Initiate an interactive version of the app.")
+    parser_tui.set_defaults(func=tui_wrapper)
+
+    parser_add = subparsers.add_parser("add", parents=[edit_add_parent_parser], help="Add a tune")
     parser_add.set_defaults(func=add)
-    parser_add.add_argument("name", type=str, help="Name of the tune")
-    parser_add.add_argument("-t", type=str, dest="type", help="Type of tune (jig, reel, etc.)")
-    parser_add.add_argument("-m", type=str, dest="mp3", help="Name of mp3 file")
-    parser_add.add_argument("-k", type=str, dest="key", help="Key of the tune")
-    parser_add.add_argument("-s", type=int, dest="status", help="Status of tune. How well the tune is known, int from 1-5.")
-    parser_add.add_argument("-a", type=str, dest="abc", help="ABC")
-    parser_add.add_argument("-c", type=str, dest="comment", help="Comment(s)")
+
+    parser_edit = subparsers.add_parser("edit", parents=[edit_add_parent_parser], help="Edit a tune")
+    parser_edit.set_defaults(func=edit)
 
     parser_list = subparsers.add_parser("list", parents=[parent_parser], help="List tunes")
     parser_list.set_defaults(func=list)
@@ -155,4 +171,4 @@ def main():
         parser.print_help()
 
 if __name__ == '__main__':
-    main()
+    os.exit(main())

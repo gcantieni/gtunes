@@ -1,14 +1,16 @@
-from peewee import *
+from peewee import SqliteDatabase, Model, CharField, IntegerField, TextField, ForeignKeyField
+import os
+from dotenv import load_dotenv
+from gtunes.fzf_interact import fzf_select
 
-db = SqliteDatabase(':memory:', pragmas={'foreign_keys': 1})
+load_dotenv()
+database_path = os.getenv("GTUNES_DB", "gtunes/data/gtunes.db")
+db = SqliteDatabase(database_path, pragmas={'foreign_keys': 1})
 
-# def load_db():
-#     global conn
-#     #db_path = os.getenv("TUNE_DB", "example.db")
 def init_db():
     global db
     db.connect()
-    db.create_tables([GTune, Recording])
+    db.create_tables([GTune, Recording], safe=True)
 
 def close_db():
     db.close()
@@ -25,7 +27,7 @@ class GTune(BaseClass):
     status = IntegerField(null=True)
     abc = TextField(null=True)
     ts_id = IntegerField(null=True) # Thesession id
-    #itinfo_id = IntegerField()
+    #itinfo_id = IntegerField() # Someday might use irishtunes.info
     comments = TextField(null=True)
     from_ = TextField(null=True)
 
@@ -37,7 +39,6 @@ class GTune(BaseClass):
         key = getattr(self, 'key', 'None')
         status = getattr(self, 'status', 'None')
         comments = getattr(self, 'comments', 'None')
-        #recordings = getattr(self, 'recordings', 'None')
 
         return f"ID: {id}, Name: {name}, Type: {type_}, Key: {key}\nABC: {abc}, Status: {status}, Comments: {comments}"
 
@@ -50,32 +51,24 @@ class Recording(BaseClass):
     start_time_secs = IntegerField(null=True)
     end_time_secs = IntegerField(null=True)
 
-def peewee():
-    db.connect()
-    db.create_tables([GTune, Recording])
+def select_tune():
+    query = GTune.select()
+    tune_list = [t.name for t in query]
+    tune_name = fzf_select(tune_list)
 
-    lark = GTune.create(name="The Lark in the Morning", key="D", type="Jig", status=4, 
-                        comments="Classic. Probably overplayed.")
-    s = GTune.create(name="Spike Island Lasses", key="D modal", type="Reel", status=4)
-    
-    larc_rec = Recording.create(spot_id="5RZiKVsRf2Bg8y4KlJp7MH", tune=lark)
+    selected_tune = GTune.select().where(GTune.name == tune_name).get()
 
-    
-    l = (GTune
-        .select()
-        .join(Recording)
-        .where(GTune.name == "The Lark in the Morning").get_or_none())
-    
-    print(GTune.get_by_id(1))
+    return selected_tune
 
+def main():
+    init_db()
+    select_tune()
+    close_db()
+
+    return 0
 
 if __name__ == "__main__":
-    # c = load_db()
-    # init_tune_db(c)
-    # add_tune(c, name="Lark in the Morning", key="D", type_="jig")
-    # list_tunes(c)
-    # close_db()
-    peewee()
+    exit(main())
 
 
 

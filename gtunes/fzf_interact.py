@@ -10,7 +10,7 @@ def fzf_select(select_from):
         text=True
     )
 
-    if type(select_from) == dict:
+    if isinstance(select_from, dict):
         select_from = [ x for x in select_from ]
 
     # Write options to fzf's stdin
