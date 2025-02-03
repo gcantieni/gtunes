@@ -12,8 +12,54 @@ from curses import wrapper
 import csv
 import os
 
+CURSOR="gtn> "
+
 def tui_wrapper(args): # args isn't used
     wrapper(tui)
+
+def _edit_tune_interactively(tune):
+    print(tune)
+    help_menu = """h: help, n: name, k: key, t: type, r: recordings, c: comment,
+a: status, o: search spotify, p: print, s: save, q: quit"""
+    print(help_menu)
+    while True:
+        opt = input(CURSOR)
+        if opt == "n":
+            tune.name = input("Name: ")
+        elif opt == "k":
+            tune.key = input("Key: ")
+        elif opt == "t":
+            tune.type = input("Type: ")
+        elif opt == "c":
+            tune.comment = input("Commend: ")
+        elif opt == "a":
+            tune.status = input("Status: ")
+        elif opt == "o":
+            save_data = _search_spotify_interactively(tune_name=tune.name)
+            # TODO: save Recordings
+        elif opt == "p":
+            print(tune)
+        elif opt == "h":
+            print(help_menu)
+        elif opt == "q":
+            should_save = False
+            print("Bye")
+            break
+        elif opt == "s":
+            print(f"Saving {tune.name}")
+            print(tune)
+            tune.save()
+            break
+
+def edit(args):
+    if not args.n:
+        print("Select tune to edit")
+        db.init_db()
+        tune = db.select_tune()
+        _edit_tune_interactively(tune)
+        db.close_db()
+    else:
+        print("Non-interactive edit has not been implemented yet.")
 
 def add(args):
     db.init_db()
@@ -26,9 +72,6 @@ def add(args):
 
     this_tune.save()
     db.close_db()
-
-def edit(args):
-    pass
 
 def list(args):
     with shelve.open(args.list_location) as shelf:
@@ -71,39 +114,49 @@ def scrape_tunes(args):
 def recs(args):
     scrape.scrape_recordings(tune_name=args.tune)
 
-def spot(args):
+def _search_spotify_interactively(tune_ts_id=None, tune_name=None):
     sp = audio.connect_to_spotify()
-    if args.s or args.S: # thesession time, baby
-        scraped_albums = None
-        if args.s:
-            scraped_albums = scrape.scrape_recordings(tune_id=args.s)
-        else:
-            scraped_albums = scrape.scrape_recordings(tune_name=args.S, limit=15)
+    scraped_albums = None
+    if tune_ts_id is not None:
+        scraped_albums = scrape.scrape_recordings(tune_id=tune_ts_id, limit=15)
+    elif tune_name is not None:
+        scraped_albums = scrape.scrape_recordings(tune_name=tune_name, limit=15)
+    else:
+        print("Error: Supplied neither tune name not thesession id")
 
-        saved_albums = {}
-        for album_name, scrape_data in scraped_albums.items():
-            alb = audio.spot_search_albums(album_name, sp, artist_name=scrape_data['artist_name'])
-            if alb:
-                track_data = audio.spot_play_nth_album_track(alb['id'], scraped_albums[album_name]['track_number'], sp)
-                if not track_data:
-                    print(f"No track data for album {album_name}, skipping")
-                    continue
-                print(f"Album: {album_name}, track: {track_data['name']}")
-                user_input = input("s: save, n: next q: quit > ")
-                if user_input == "s":
-                    saved_albums[album_name] = scraped_albums[album_name]
-                    saved_albums[album_name]['spot_album_id'] = alb['id']
-                elif user_input == "q":
-                    print("bye")
-                    break
-                elif user_input == "n":
-                    continue
-        print("Done playing albums.")
-        if saved_albums:
-            print(f"Save data: {saved_albums}")
+    saved_albums = {}
+    for album_name, scrape_data in scraped_albums.items():
+        alb = audio.spot_search_albums(album_name, sp, artist_name=scrape_data['artist_name'])
+        if alb:
+            track_data = audio.spot_play_nth_album_track(alb['id'], scraped_albums[album_name]['track_number'], sp)
+            if not track_data:
+                print(f"No track data for album {album_name}, skipping")
+                continue
+            print(f"Album: {album_name}, track: {track_data['name']}")
+            user_input = input("s: save, n: next q: quit > ")
+            if user_input == "s":
+                saved_albums[album_name] = scraped_albums[album_name]
+                saved_albums[album_name]['spot_album_id'] = alb['id']
+            elif user_input == "q":
+                print("bye")
+                break
+            elif user_input == "n":
+                continue
+    print("Done playing albums.")
+    if saved_albums:
+        print(f"Save data: {saved_albums}")
+    return saved_albums
+
+def spot(args):
+    if args.s or args.S: # thesession time, baby
+        if args.s:
+            _search_spotify_interactively(tune_ts_id=args.s)
+        else:
+            _search_spotify_interactively(tune_name=args.S)
     elif not args.a and not args.t:
         print("Must specify either album or track option")
     if args.t:
+        sp = audio.connect_to_spotify()
         audio.search_for_track(args.name, sp)
     
 
@@ -119,7 +172,7 @@ def main():
     # Create parsers for subcommands
 
     edit_add_parent_parser = argparse.ArgumentParser(add_help=False)
-    edit_add_parent_parser.add_argument("name", type=str, help="Name of the tune")
+    edit_add_parent_parser.add_argument("-n", type=str, help="Name of the tune. If this is not set, all other arguments will be ignored and the tune will be resolved interactively.")
     edit_add_parent_parser.add_argument("-t", type=str, dest="type", help="Type of tune (jig, reel, etc.)")
     edit_add_parent_parser.add_argument("-r", type=str, dest="recording", help="Either spotify id or path to the recording, specified as ")
     edit_add_parent_parser.add_argument("-k", type=str, dest="key", help="Key of the tune")

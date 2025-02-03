@@ -81,7 +81,7 @@ class LineParser:
                 if key_match:
                     this_tune.key = key_match.group()
                 if type_match:
-                    this_tune.type = type_match.group()
+                    this_tune.type_ = type_match.group()
                 
                 if not key_match and not type_match:
                     this_tune.comments = md
@@ -89,7 +89,7 @@ class LineParser:
             this_tune.save()
         except IntegrityError as e:
             print(f"Duplicate name found in tune list: {this_tune.name}")
-            
+
         return this_tune
 
 class StartLineParser(LineParser):
@@ -154,7 +154,7 @@ class LearnedTuneParser(LineParser):
         
         tune = self.parse_tune(line)
         if tune:
-            tune.type = self.tune_type
+            tune.type_ = self.tune_type
             tune.key = self.key
             self.add_tune(tune)
 
