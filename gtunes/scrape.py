@@ -4,6 +4,7 @@ import requests
 from bs4 import BeautifulSoup
 
 debug=False
+TUNE_DELIMITER = " / "
 
 def print_debug(debug_str):
     global debug
@@ -56,6 +57,7 @@ def get_abc(tune_id, should_print=False):
 
 def _get_tune_id(tune_name):
     tunes = query_the_sessions(tune_name)
+    # TODO: if this doesn't find anything it actually returns "{'name': None, 'id': None}"
     if len(tunes) == 0:
         return None
     id = tunes[0]['id']
@@ -65,17 +67,11 @@ def _get_tune_id(tune_name):
 def get_abc_by_name(name, interactive=False):
     return get_abc(_get_tune_id(name))
 
-
-# TODO: get recordings for tune
-# go to thesession.org/tune/<tuneid>/recording
-# for each of those recordings, go to
-# thesession.org/recordings/<recordingid>
-# find <ol class="manifest-inventory">
-# iterate through the sub <li> attributes
-# find <a-preview data-tune-id="<tuneid>">
-# return the recording name, artist, and track number
-# this can then be used to find the album on e.g. Spotify
-# and play the corresponding piece.
+# some inherently brittle logic to extract the album data:
+# the Albums are in an ordered list "manifest-inventory". each list item
+# has an internal link, a-preview, pointing to the tunes of the track.
+# This has an internal "data-tunid" which we can compare to our input tune_id to
+# find the appropriate track. 
 def find_track_number(recording_id, tune_id):
     print_debug(f"Finding track number for recording_id={recording_id} and tune_id={tune_id}")
     response = requests.get(f"https://thesession.org/recordings/{recording_id}")
@@ -84,14 +80,25 @@ def find_track_number(recording_id, tune_id):
     track_number = None
     tune_number = None
     tracks = soup.find_all("li", class_="manifest-item")
+    target_track = None
     for i, track in enumerate(tracks, 1):
         track_tunes = track.find_all("a-preview")
         for j, tt in enumerate(track_tunes, 1):
             if int(tt["data-tuneid"]) == tune_id:
                 track_number = i
                 tune_number = j
+                target_track = track
+                break
 
-    return track_number, tune_number
+    set_string = ""
+    if target_track:
+        track_tune_links = target_track.find_all("a")
+        for a in track_tune_links:
+            set_string += a.text + TUNE_DELIMITER
+        set_string = set_string[:-len(TUNE_DELIMITER)] # Remove the last delimiter
+
+
+    return { "track_number": track_number, "tune_number": tune_number, "track_string": set_string }
 
 def scrape_recordings(tune_name=None, tune_id=None, limit=None):
     if not tune_name and not tune_id:
@@ -129,12 +136,14 @@ def scrape_recordings(tune_name=None, tune_id=None, limit=None):
         # Unfortunately, in order to find the track number we need to scrape the
         # album page itself. this could be solved by using irishtunes.info which
         # has the album data and track number on the same page.
-        track_number, tune_number = find_track_number(album_id, tune_id)
+        #track_number, tune_number = find_track_number(album_id, tune_id)
+        track_data = find_track_number(album_id, tune_id)
 
         output[name] = {
-            "track_number": track_number, 
-            "tune_number": tune_number, 
-            "artist_name": artist_name
+            "track_number": track_data["track_number"], 
+            "tune_number": track_data["tune_number"], 
+            "track_tunes": track_data["track_string"],
+            "artist_name": artist_name,
         }
 
     print(f"Found {len(output)} albums containing specified tune.")

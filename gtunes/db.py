@@ -51,10 +51,10 @@ class Recording(BaseClass):
     start_time_secs = IntegerField(null=True)
     end_time_secs = IntegerField(null=True)
 
-def select_tune():
+def select_tune(header=None):
     query = GTune.select()
     tune_list = [t.name for t in query]
-    tune_name = fzf_select(tune_list)
+    tune_name = fzf_select(tune_list, header=header)
 
     selected_tune = GTune.select().where(GTune.name == tune_name).get()
 

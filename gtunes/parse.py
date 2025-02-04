@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-from gtunes import tune
 from gtunes.db import GTune, Recording, init_db, close_db
 from dotenv import load_dotenv
 from peewee import IntegrityError
@@ -81,7 +80,7 @@ class LineParser:
                 if key_match:
                     this_tune.key = key_match.group()
                 if type_match:
-                    this_tune.type_ = type_match.group()
+                    this_tune.type = type_match.group()
                 
                 if not key_match and not type_match:
                     this_tune.comments = md
@@ -89,7 +88,7 @@ class LineParser:
             this_tune.save()
         except IntegrityError as e:
             print(f"Duplicate name found in tune list: {this_tune.name}")
-
+            
         return this_tune
 
 class StartLineParser(LineParser):
@@ -154,7 +153,7 @@ class LearnedTuneParser(LineParser):
         
         tune = self.parse_tune(line)
         if tune:
-            tune.type_ = self.tune_type
+            tune.type = self.tune_type
             tune.key = self.key
             self.add_tune(tune)
 
