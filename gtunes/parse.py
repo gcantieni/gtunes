@@ -53,8 +53,9 @@ class LineParser:
         name = line_parts[0].strip()
 
         this_tune = None
+
         # Some of my names are actually audio file names.
-        # These I can parse slightly differently. They will look like: [[BlackPats.m4a]]
+        # These I can parse slightly differently. They will look like: [[TuneName.m4a]]
         m4a_pattern = r'\[\[(.*?)\.m4a\]\]'
         m4a_match = re.match(m4a_pattern, name)
         if m4a_match:
@@ -110,6 +111,7 @@ class LearnLineParser(LineParser):
         
         tune = self.parse_tune(line)
         if tune:
+            tune.status = 1
             self.add_tune(tune)
 
         return self
@@ -155,6 +157,7 @@ class LearnedTuneParser(LineParser):
         if tune:
             tune.type = self.tune_type
             tune.key = self.key
+            tune.status = 3
             self.add_tune(tune)
 
         return self

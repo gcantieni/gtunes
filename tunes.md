@@ -110,6 +110,13 @@ PRACTICE:
 - the lads it leische
 - the wind that shakes the barley
 - dinny o’brian’s
+- sweeney’s buttermilk
+- silver spire 
+- scotsman over the boarder
+- broken pledge 
+- the drunken landlady 
+- richard dwyer's- [spot](https://open.spotify.com/track/5Ez26Urj2rah41LZKKLCwj?si=8f5aacb31b544585)
+- tilly finn’s- D reel 
 
 REELS:
 
@@ -136,6 +143,7 @@ D
 - the sunny banks
 - love at the endings- D reel, [youtube](https://m.youtube.com/watch?v=HcusTFQvhTU&pp=ygUYbG92ZSBhdCB0aGUgZW5kaW5ncyByZWVs) 
 - the bucks of oranmore
+- the virginian 
 
 D modal
 - kylebrach rambler
