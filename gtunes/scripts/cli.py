@@ -209,11 +209,6 @@ def spot(args):
             _search_spotify_interactively(tune_ts_id=args.s)
         else:
             _search_spotify_interactively(tune_name=args.S)
-    elif not args.a and not args.t:
-        print("Must specify either album or track option")
-    if args.t:
-        sp = audio.connect_to_spotify()
-        audio.search_for_track(args.name, sp)
     
 
 def main():
@@ -264,13 +259,9 @@ def main():
     parser_recordings.set_defaults(func=recs)
     parser_recordings.add_argument("tune", help="Name fo the tune to find recordings of.")
 
-    parser_spot = subparsers.add_parser("spot", help="Play albums from spotify.")
+    parser_spot = subparsers.add_parser("spot", help="Scrape albums of thesession.org by name and search for them on spotify.")
     parser_spot.set_defaults(func=spot)
-    parser_spot.add_argument("-name", help="Name of track or album to be played.")
-    parser_spot.add_argument("-a", action="store_true", help="Play album")
-    parser_spot.add_argument("-t", action="store_true", help="Play track")
-    parser_spot.add_argument("-s", help="Scrape albums of thesession.org by id and search for them on spotify.")
-    parser_spot.add_argument("-S", help="Scrape albums of thesession.org by name and search for them on spotify.")
+    parser_spot.add_argument("name", help="Name of the tune.")
 
     args = parser.parse_args()
     if args.command:
