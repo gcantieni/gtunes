@@ -113,10 +113,21 @@ def add(args):
     db.close_db()
 
 def list(args):
-    with shelve.open(args.list_location) as shelf:
-        print(f"Shelf contains {len(shelf)} tunes")
-        for name in shelf:
-            print(f"{shelf[name]}")
+    db.init_db()
+    sel = db.GTune.select()
+    print(f"Listing tunes.\nConditions:{"" if not args.name else " Name=" + args.name}\
+{"" if not args.type else " Type=" + args.type}{"" if not args.status else " Status=" + args.status}")
+
+    if args.name is not None:
+        sel = sel.where(db.GTune.name == args.name)
+    if args.type:
+        sel = sel.where(db.GTune.type == args.type)
+    if args.status:
+        sel = sel.where(db.GTune.status == args.status)
+
+    for tune in sel:
+        print(tune)
+    
 
 def parse_(args):
     parser = parse.TuneListParser(args.infile)
@@ -234,9 +245,8 @@ def main():
     parser_edit = subparsers.add_parser("edit", parents=[edit_add_parent_parser], help="Edit a tune")
     parser_edit.set_defaults(func=edit)
 
-    parser_list = subparsers.add_parser("list", parents=[parent_parser], help="List tunes")
+    parser_list = subparsers.add_parser("ls", parents=[parent_parser], help="List tunes")
     parser_list.set_defaults(func=list)
-    parser_list.add_argument("infile", help="Name of tune list")
     parser_list.add_argument("-n", dest="name", help="Name of tune")
     parser_list.add_argument("-t", dest="type", help="Type of tune (jig, reel, etc.)")
     parser_list.add_argument("-s", dest="status", help="Status of tune. How well the tune is known, int from 1-5.")
