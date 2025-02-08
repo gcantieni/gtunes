@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import requests
+import queue
+import threading
 from bs4 import BeautifulSoup
 
 debug=False
@@ -100,7 +102,22 @@ def find_track_number(recording_id, tune_id):
 
     return { "track_number": track_number, "tune_number": tune_number, "track_string": set_string }
 
-def scrape_recordings(tune_name=None, tune_id=None, limit=None):
+# This is a long-running operation, so make an async version.
+# Returns a queue that the consumer can get album data from.
+def scrape_recording_data_async(tune_name=None, tune_id=None, limit=None):
+    q = queue.Queue()
+    t = threading.Thread(target=scrape_recording_data,
+                         daemon=True, # Exit when main thread exits
+                         kwargs={"tune_name": tune_name,
+                                    "tune_id": tune_id, 
+                                    "limit": limit,
+                                    "data_queue": q})
+    t.start()
+    return q
+    
+
+
+def scrape_recording_data(tune_name=None, tune_id=None, limit=None, data_queue=None):
     if not tune_name and not tune_id:
         print("Must specify either tune name or tune id")
     
@@ -116,7 +133,7 @@ def scrape_recordings(tune_name=None, tune_id=None, limit=None):
     recording_list_items = soup.find_all("li", class_="manifest-item")
 
     max_items = len(recording_list_items) if not limit else min(len(recording_list_items), limit)
-    output = {}
+    output = []
     for i in range(max_items):
         li = recording_list_items[i]
 
@@ -139,12 +156,20 @@ def scrape_recordings(tune_name=None, tune_id=None, limit=None):
         #track_number, tune_number = find_track_number(album_id, tune_id)
         track_data = find_track_number(album_id, tune_id)
 
-        output[name] = {
+        entry = {
+            "album_name" : name,
             "track_number": track_data["track_number"], 
             "tune_number": track_data["tune_number"], 
             "track_tunes": track_data["track_string"],
             "artist_name": artist_name,
         }
+        if data_queue:
+            data_queue.put(entry)
+        else:
+            output.append(entry)
+    if data_queue:
+        data_queue.put(None) # Tell the thread we're done.
+
 
     print(f"Found {len(output)} albums containing specified tune.")
 

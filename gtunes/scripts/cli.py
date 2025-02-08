@@ -162,20 +162,25 @@ def scrape_tunes(args):
 
 # Find recordings for a particular tune and TODO save them to the tune database.
 def recs(args):
-    scrape.scrape_recordings(tune_name=args.tune)
+    scrape.scrape_recording_data(tune_name=args.tune)
 
 def _search_spotify_interactively(tune_ts_id=None, tune_name=None):
     sp = audio.connect_to_spotify()
     scraped_albums = None
     if tune_ts_id is not None:
-        scraped_albums = scrape.scrape_recordings(tune_id=tune_ts_id, limit=15)
+        queue = scrape.scrape_recording_data_async(tune_id=tune_ts_id)
     elif tune_name is not None:
-        scraped_albums = scrape.scrape_recordings(tune_name=tune_name, limit=15)
+        queue = scrape.scrape_recording_data_async(tune_name=tune_name, limit=15)
     else:
         print("Error: Supplied neither tune name not thesession id")
+        return []
 
     saved_track_data = []
-    for album_name, scrape_data in scraped_albums.items():
+    while True:
+        scrape_data = queue.get()
+        if scrape_data is None:
+            break
+        album_name = scrape_data["album_name"]
         alb = audio.spot_search_albums(album_name, sp, artist_name=scrape_data['artist_name'])
         if alb:
             print(f"Album: {album_name}, track tunes: {scrape_data["track_tunes"]}")
@@ -204,11 +209,7 @@ def _search_spotify_interactively(tune_ts_id=None, tune_name=None):
     return saved_track_data
 
 def spot(args):
-    if args.s or args.S: # thesession time, baby
-        if args.s:
-            _search_spotify_interactively(tune_ts_id=args.s)
-        else:
-            _search_spotify_interactively(tune_name=args.S)
+    _search_spotify_interactively(tune_name=args.name)
     
 
 def main():
