@@ -40,6 +40,10 @@ class LineParser:
 
     def add_tune(self, tune):
         self.tunes[tune.name] = tune
+        try:
+            tune.save()
+        except IntegrityError as e:
+            print(f"Duplicate name found in tune list: {tune.name}")
 
     def parse_tune(self, line) -> GTune:
         line_parts = line.split("-")
@@ -85,10 +89,6 @@ class LineParser:
                 
                 if not key_match and not type_match:
                     this_tune.comments = md
-        try:
-            this_tune.save()
-        except IntegrityError as e:
-            print(f"Duplicate name found in tune list: {this_tune.name}")
             
         return this_tune
 
