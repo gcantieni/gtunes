@@ -1,7 +1,8 @@
-from peewee import SqliteDatabase, Model, CharField, IntegerField, TextField, ForeignKeyField
+from peewee import SqliteDatabase, Model, CharField, IntegerField, TextField, ForeignKeyField, DateTimeField
 import os
 from dotenv import load_dotenv
 from gtunes.fzf_interact import fzf_select
+import datetime
 
 load_dotenv()
 database_path = os.getenv("GTUNES_DB", "gtunes/data/gtunes.db")
@@ -30,6 +31,8 @@ class GTune(BaseClass):
     #itinfo_id = IntegerField() # Someday might use irishtunes.info
     comments = TextField(null=True)
     from_ = TextField(null=True)
+    date_updated = DateTimeField(default=datetime.datetime.now)
+    date_added = DateTimeField(default=datetime.datetime.now)
 
     def __str__(self):
         name = getattr(self, 'name', 'None')
