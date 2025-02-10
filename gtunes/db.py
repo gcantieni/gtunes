@@ -63,6 +63,9 @@ def select_tune(header=None):
 
     return selected_tune
 
+def get_tune_by_name(tune_name):
+    return GTune.select().where(GTune.name == tune_name).get()
+
 def main():
     init_db()
     select_tune()
