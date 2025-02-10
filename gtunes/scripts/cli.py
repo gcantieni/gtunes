@@ -12,6 +12,7 @@ from curses import wrapper
 import csv
 import os
 import sys
+import subprocess
 
 CURSOR="gtn> "
 
@@ -193,7 +194,7 @@ def _search_spotify_interactively(tune_ts_id=None, tune_name=None):
 
             user_input = input("s: save, n: next q: quit > ")
             if user_input == "s":
-                save_data = scraped_albums[album_name]
+                save_data = scrape_data
                 save_data["album_name"] = album_name
                 save_data["spot_album_id"] = alb['id']
                 save_data["spot_id"] = track_data["id"]
@@ -210,7 +211,36 @@ def _search_spotify_interactively(tune_ts_id=None, tune_name=None):
 
 def spot(args):
     _search_spotify_interactively(tune_name=args.name)
-    
+
+def open_file(filepath):
+    if sys.platform == "win32":  # Windows
+        os.startfile(filepath)
+    elif sys.platform == "darwin":  # macOS
+        subprocess.run(["open", filepath])
+    else:  # Linux
+        subprocess.run(["xdg-open", filepath])
+
+def abc(args):
+    db.init_db()
+    tune = db.select_tune("Choose a tune to get the abc of.")
+    if not tune.abc:
+        print(f"Searching the session for abc for {tune.name}...")
+        abc_settings = scrape.get_abc_by_name(tune.name)
+
+        tune.abc = abc_settings[0]
+    else:
+        print("Using stored abc setting")
+
+    filename = tune.name.replace(" ", "-")
+
+    with open("tmp.abc", "w+") as tmpfile:
+        tmpfile.write(tune.abc)
+
+    # -g means svg, one tune per file
+    subprocess.run(["abcm2ps", "-g", "tmp.abc", "-O", filename])
+        
+    db.close_db()
+
 
 def main():
     parser = argparse.ArgumentParser(description="Add and manipulate traditional tunes.")
@@ -237,6 +267,10 @@ def main():
 
     parser_add = subparsers.add_parser("add", parents=[edit_add_parent_parser], help="Add a tune")
     parser_add.set_defaults(func=add)
+
+    parser_abc = subparsers.add_parser("abc", parents=[edit_add_parent_parser], help="Add a tune")
+    parser_abc.set_defaults(func=abc)
+    parser_abc.add_argument("-f", action="store_true", help="Use the first abc without confirming")
 
     parser_edit = subparsers.add_parser("edit", parents=[edit_add_parent_parser], help="Edit a tune")
     parser_edit.set_defaults(func=edit)
