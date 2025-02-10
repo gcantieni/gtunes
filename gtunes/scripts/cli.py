@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
 # The frontend: command line interface for the app.
 
-import argparse
-import shelve
 from gtunes import parse
 from gtunes import scrape
 from gtunes import db
 from gtunes import audio
+from dotenv import load_dotenv
 from gtunes.tui import tui
 from curses import wrapper
+import argparse
+import shelve
 import csv
 import os
 import sys
 import subprocess
+import json
+import urllib.request
 
 CURSOR="gtn> "
 
@@ -249,6 +252,73 @@ def abc(args):
 
     db.close_db()
 
+def _ac_request(action, **params):
+    return {'action': action, 'params': params, 'version': 6}
+
+def _ac_invoke(action, **params):
+    requestJson = json.dumps(_ac_request(action, **params)).encode('utf-8')
+    response = json.load(urllib.request.urlopen(urllib.request.Request('http://127.0.0.1:8765', requestJson)))
+    if len(response) != 2:
+        raise Exception('response has an unexpected number of fields')
+    if 'error' not in response:
+        raise Exception('response is missing required error field')
+    if 'result' not in response:
+        raise Exception('response is missing required result field')
+    if response['error'] is not None:
+        raise Exception(response['error'])
+    return response['result']
+
+# Returns the abc_string but with no title field
+def remove_title_from_abc(abc_string):
+    out_str = ""
+    for line in abc_string:
+        if line[:1] == "T:":
+            print("Removing title")
+        else:
+            out_str = out_str.join(line)
+    
+    return out_str
+
+def flash(args):
+    db.init_db()
+
+    tune = db.select_tune("Choose tune to put on flashcard")
+
+    if not tune.abc:
+        add_first_abc_setting_to_tune(tune)
+    else:
+        print("Using stored abc for tune.")
+
+    tune_name_for_file = tune.name.replace(" ", "-")
+    
+    # Remove the name for the abc so that the flashcard doesn't give away the tune name.
+    abc = remove_title_from_abc(tune.abc)
+
+    convert_abc_to_svg(abc, tune_name_for_file)
+
+    file_name = tune_name_for_file + "001.svg" # For some reason abcm2svg appends "001" to the filename
+    file_path = os.path.abspath(file_name)
+
+    load_dotenv()
+    deck_name = os.getenv("GTUNES_ANKI_DECK", "GTunes")
+    _ac_invoke('createDeck', deck=deck_name) # This won't do anything if deck was already created earlier
+
+    _ac_invoke("addNote", note={
+        "deckName": deck_name,
+        "modelName": "Basic",
+        "fields": {
+            "Front": tune.name,
+            "Back": "",
+        },
+        "picture": [{
+                "path": file_path,
+                "filename": file_name,
+                "fields": [
+                    "Back"
+                ]
+            }]
+    })
+
 
 def main():
     parser = argparse.ArgumentParser(description="Add and manipulate traditional tunes.")
@@ -282,6 +352,9 @@ def main():
 
     parser_edit = subparsers.add_parser("edit", parents=[edit_add_parent_parser], help="Edit a tune")
     parser_edit.set_defaults(func=edit)
+
+    parser_flash = subparsers.add_parser("flash", help="Make tune flashcards")
+    parser_flash.set_defaults(func=flash)
 
     parser_list = subparsers.add_parser("ls", parents=[parent_parser], help="List tunes")
     parser_list.set_defaults(func=list)
