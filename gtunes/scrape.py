@@ -170,9 +170,6 @@ def scrape_recording_data(tune_name=None, tune_id=None, limit=None, data_queue=N
     if data_queue:
         data_queue.put(None) # Tell the thread we're done.
 
-
-    print(f"Found {len(output)} albums containing specified tune.")
-
     return output
 
 def main():
