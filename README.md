@@ -30,6 +30,11 @@ Verify this worked with
 gtn -h
 ```
 
+### Feature specific setup
+
+#### Spotify integration
+`gtn` can search spotify for tracks containing a specific tune. This is much more reliable than simply searching the tune name, as often the track name doesn't have the tune in it. To enable this feature, you need to setup spotify developer credentials in Spotify, which is luckily pretty simple.
+
 To setup spotify credentials (requires a paid spotify account):
 - Go to the developer dashboard: https://developer.spotify.com/dashboard
 - "Create App"
@@ -47,6 +52,29 @@ SPOTIPY_REDIRECT_URI='http://localhost:1234'
 ```
 
 `gtn spot -h` should give the basic spotify command options.
+
+#### Flashcards: Anki integration
+`gtn` can create flashcards the use the magic of spaced repetition to help with tune memorization.
+
+Install Anki. Install AnkiConnect, an API for apps to integrate with Anki. This is best summed up by their website: https://foosoft.net/projects/anki-connect/
+
+NOTE: On MacOS you will have to also run
+
+```sh
+defaults write net.ankiweb.dtop NSAppSleepDisabled -bool true
+defaults write net.ichi2.anki NSAppSleepDisabled -bool true
+defaults write org.qt-project.Qt.QtWebEngineCore NSAppSleepDisabled -bool true
+```
+
+If you have a specific flashcard deck you want the tunes to be put in you can set it in the envionment or in the .env file:
+
+```sh
+export GTUNE_ANK_DECK="Irish Tunes"
+```
+
+The default deck name is "GTunes"
+
+`gtn flash -h` will give usage notes about how to use this feature.
 
 ### Goal and vibe
 This is currently designed as a specifically me-oriented app to reduce the friction in the process of maintaining a list of Irish tunes that I know, and using that list to learn new Irish tunes, generally from recordings.
