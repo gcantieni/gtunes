@@ -220,25 +220,33 @@ def open_file(filepath):
     else:  # Linux
         subprocess.run(["xdg-open", filepath])
 
+# Scrapes the session for abc, and adds it to the tune with the specified name.
+def add_first_abc_setting_to_tune(tune):
+    print(f"Searching the session for abc for {tune.name}...")
+    abc_settings = scrape.get_abc_by_name(tune.name)
+
+    tune.abc = abc_settings[0]
+
+def convert_abc_to_svg(abc_string, output_file_name):
+    with open("tmp.abc", "w+") as tmpfile:
+        tmpfile.write(abc_string)
+
+    # -g means svg, one tune per file
+    subprocess.run(["abcm2ps", "-g", "tmp.abc", "-O", output_file_name])
+
 def abc(args):
     db.init_db()
     tune = db.select_tune("Choose a tune to get the abc of.")
-    if not tune.abc:
-        print(f"Searching the session for abc for {tune.name}...")
-        abc_settings = scrape.get_abc_by_name(tune.name)
 
-        tune.abc = abc_settings[0]
+    if not tune.abc:
+        add_first_abc_setting_to_tune(tune)
     else:
         print("Using stored abc setting")
 
     filename = tune.name.replace(" ", "-")
 
-    with open("tmp.abc", "w+") as tmpfile:
-        tmpfile.write(tune.abc)
+    convert_abc_to_svg(tune.abc, filename)
 
-    # -g means svg, one tune per file
-    subprocess.run(["abcm2ps", "-g", "tmp.abc", "-O", filename])
-        
     db.close_db()
 
 
