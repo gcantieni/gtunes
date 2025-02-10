@@ -1,7 +1,14 @@
 # Track and learn traditional Irish tunes
 
 ### Installation and setup
-External dependencies:`fzf`, `python3`
+External dependencies: `fzf`, `python3`, `abcm2ps`
+
+I'm on mac, so for me that just involved:
+
+```sh
+brew install fzf abcm2ps
+# python3 already installed
+```
 
 Installation:
 
@@ -10,7 +17,7 @@ Clone the repo
 To activate a Python virtual environment and install the dependencies:
 ```sh
 cd gtunes
-pip -m venv .venv
+python3 -m venv .venv
 . .venv/bin/activate
 
 pip install -t requirements.txt
