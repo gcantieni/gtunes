@@ -8,10 +8,10 @@ load_dotenv()
 database_path = os.getenv("GTUNES_DB", "gtunes/data/gtunes.db")
 db = SqliteDatabase(database_path, pragmas={'foreign_keys': 1})
 
-def init_db():
+def open_db():
     global db
     db.connect()
-    db.create_tables([GTune, Recording], safe=True)
+    db.create_tables([GTune, Recording, RecordingGTune], safe=True)
 
 def close_db():
     db.close()
@@ -35,22 +35,28 @@ class GTune(BaseClass):
     date_added = DateTimeField(default=datetime.datetime.now)
 
     def __str__(self):
-        name = getattr(self, 'name', 'None')
-        id = getattr(self, 'id', 'None')
-        type_ = getattr(self, 'type', 'None')
-        abc = getattr(self, 'abc', 'None')
-        key = getattr(self, 'key', 'None')
-        status = getattr(self, 'status', 'None')
-        comments = getattr(self, 'comments', 'None')
+        extra_info = ""
+        if self.key and self.type:
+            extra_info = f" ({self.key} {self.type})"
+        elif self.key:
+            extra_info = f" ({self.key})"
+        elif self.type:
+            extra_info = f" ({self.type})"
 
-        return f"ID: {id}, Name: {name}, Type: {type_}, Key: {key}\nABC: {abc}, Status: {status}, Comments: {comments}"
+        return f"{self.name}{extra_info}"
 
+        #return f"ID: {id}, Name: {name}, Type: {type_}, Key: {key}\nABC: {abc}, Status: {status}, Comments: {comments}"
 
 class Recording(BaseClass):
     name = CharField(null=True)
-    spot_id = CharField(null=True)
-    path = CharField(null=True)
-    tune = ForeignKeyField(GTune, backref='recordings', null=True)
+    url = TextField()
+    source = CharField() # spotify, youtube, local
+
+# jump table: find all the recordings of a tune you have, and where they start
+# or find all the tunes in a recording that you have tracked
+class RecordingGTune(BaseClass):
+    tune = ForeignKeyField(GTune)
+    recording = ForeignKeyField(GTune)
     start_time_secs = IntegerField(null=True)
     end_time_secs = IntegerField(null=True)
 
@@ -67,7 +73,7 @@ def get_tune_by_name(tune_name):
     return GTune.select().where(GTune.name == tune_name).get()
 
 def main():
-    init_db()
+    open_db()
     select_tune()
     close_db()
 
