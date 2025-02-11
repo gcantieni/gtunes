@@ -16,6 +16,7 @@ import sys
 import subprocess
 import json
 import urllib.request
+import re
 
 CURSOR="gtn> "
 
@@ -98,7 +99,7 @@ def edit(args):
     if args.n is not None:
         print("Non-interactive edit has not been implemented yet.")
     if not args.n:
-        db.init_db()
+        db.open_db()
         tune = db.select_tune(header="Select tune to edit")
         _edit_and_save_tune_interactively(tune)
         db.close_db()
@@ -109,7 +110,7 @@ def add(args):
         print("Non-interactive add is not currently supported.")
         return 0
     
-    db.init_db()
+    db.open_db()
 
     this_tune = db.GTune()
     _edit_and_save_tune_interactively(this_tune)
@@ -117,7 +118,7 @@ def add(args):
     db.close_db()
 
 def list(args):
-    db.init_db()
+    db.open_db()
     sel = db.GTune.select()
     print(f"Listing tunes.\nConditions:{"" if not args.name else " Name=" + args.name}\
 {"" if not args.type else " Type=" + args.type}{"" if not args.status else " Status=" + args.status}")
@@ -135,29 +136,26 @@ def list(args):
 
 def parse_(args):
     parser = parse.TuneListParser(args.infile)
-    tunes = parser.parse()
+    parser.parse()
+    parser.print_tunes()
 
-    if args.outfile:
-        path, ext = os.path.splitext(args.outfile)
+def export(args):
+    if args.c:
+        output_file_name = "gtunes.csv"
+        print(f"Writing tunes to CSV file {output_file_name}")
 
-        if ext == '.csv':
-            with open(args.outfile, 'w') as csvfile:
-                tunewriter = csv.writer(csvfile)
-                print("Writing tunes to CSV file")
-                tunewriter.writerow(["id", "name", "type", "status", "key", "comments"])
-                for name, tune in tunes.items():
-                    comments_str = ""
-                    for c in tune.comments:
-                        comments_str += c + "\n"
-                    tunewriter.writerow([tune.id, tune.name, tune.type, tune.status, tune.key, comments_str])
-        else: 
-            with shelve.open(args.outfile) as shelf:
-                for name in tunes:
-                    shelf[name] = tunes[name]
-        
-            print(f"Saved {len(tunes)} tunes to {args.outfile}.db")
+        with open(output_file_name, 'w') as csvfile:
+            tunewriter = csv.writer(csvfile)
+            db.open_db()
+            tunewriter.writerow(["id", "name", "type", "status", "key", "comments"])
+
+            for tune in db.GTune.select():
+                tunewriter.writerow([tune.id, tune.name, tune.type, tune.status, tune.key, tune.comments])
+            
+            db.close_db()
     else:
-        parser.print_tunes()
+        print("Error: no export option specified")
+
 
 def scrape_tunes(args):
     tune_abc = scrape.get_abc_by_name(args.tune_name)
@@ -231,14 +229,15 @@ def add_first_abc_setting_to_tune(tune):
     tune.abc = abc_settings[0]
 
 def convert_abc_to_svg(abc_string, output_file_name):
-    with open("tmp.abc", "w+") as tmpfile:
+    tmp_name = "tmp.abc"
+    with open(tmp_name, "w+") as tmpfile:
         tmpfile.write(abc_string)
 
     # -g means svg, one tune per file
-    subprocess.run(["abcm2ps", "-g", "tmp.abc", "-O", output_file_name])
+    subprocess.run(["abcm2ps", "-g", tmp_name, "-O", output_file_name])
 
 def abc(args):
-    db.init_db()
+    db.open_db()
     tune = db.select_tune("Choose a tune to get the abc of.")
 
     if not tune.abc:
@@ -271,16 +270,16 @@ def _ac_invoke(action, **params):
 # Returns the abc_string but with no title field
 def remove_title_from_abc(abc_string):
     out_str = ""
-    for line in abc_string:
-        if line[:1] == "T:":
-            print("Removing title")
+    for line in abc_string.split("\n"):
+        if re.match(r"^T:.*", line):
+            print(f"Skipping line with title in it: {line}")
         else:
-            out_str = out_str.join(line)
+            out_str += line + "\n"
     
     return out_str
 
 def flash(args):
-    db.init_db()
+    db.open_db()
 
     tune = db.select_tune("Choose tune to put on flashcard")
 
@@ -292,9 +291,7 @@ def flash(args):
     tune_name_for_file = tune.name.replace(" ", "-")
     
     # Remove the name for the abc so that the flashcard doesn't give away the tune name.
-    abc = remove_title_from_abc(tune.abc)
-
-    convert_abc_to_svg(abc, tune_name_for_file)
+    convert_abc_to_svg(remove_title_from_abc(tune.abc), tune_name_for_file)
 
     file_name = tune_name_for_file + "001.svg" # For some reason abcm2svg appends "001" to the filename
     file_path = os.path.abspath(file_name)
@@ -378,6 +375,10 @@ def main():
     parser_spot = subparsers.add_parser("spot", help="Scrape albums of thesession.org by name and search for them on spotify.")
     parser_spot.set_defaults(func=spot)
     parser_spot.add_argument("name", help="Name of the tune.")
+
+    parser_export = subparsers.add_parser("export", help="Export tune database to different formats.")
+    parser_export.set_defaults(func=export)
+    parser_export.add_argument("-c", help="Export to csv", action="store_true")
 
     args = parser.parse_args()
     if args.command:
