@@ -2,16 +2,18 @@ from peewee import SqliteDatabase, Model, CharField, IntegerField, TextField, Fo
 import os
 from dotenv import load_dotenv
 from gtunes.fzf_interact import fzf_select
+from enum import Enum
 import datetime
 
 load_dotenv()
-database_path = os.getenv("GTUNES_DB", "gtunes/data/gtunes.db")
+data_dir = os.getenv("GTUNES_DB", os.path.join("gtunes", "data"))
+database_path = os.path.join(data_dir, "gtunes.db")
 db = SqliteDatabase(database_path, pragmas={'foreign_keys': 1})
 
 def open_db():
     global db
     db.connect()
-    db.create_tables([GTune, Recording, RecordingGTune], safe=True)
+    db.create_tables([Tune, Recording, RecordingTune], safe=True)
 
 def close_db():
     db.close()
@@ -20,8 +22,22 @@ class BaseClass(Model):
     class Meta:
         database = db
 
+# TODO: could represent based on color, like green for learned
+# TODO: use this
+def status_to_string(status : int) -> str:
+    if status == 0:
+        return "Status not defined"
+    if status == 1:
+        return "todo"
+    if status == 2:
+        return "flash"
+    if status == 3:
+        return "set"
+    if status == 4:
+        return "learned"
+
 # Start simple, each tune just has one recording, one spotify id, one path to an mp3
-class GTune(BaseClass):
+class Tune(BaseClass):
     name = CharField(unique=True)
     key = CharField(null=True)
     type = CharField(null=True)
@@ -34,43 +50,102 @@ class GTune(BaseClass):
     date_updated = DateTimeField(default=datetime.datetime.now)
     date_added = DateTimeField(default=datetime.datetime.now)
 
+    # Desired output:
+    # The Lark in the Morning (D jig) - S: 1 
     def __str__(self):
-        extra_info = ""
-        if self.key and self.type:
-            extra_info = f" ({self.key} {self.type})"
-        elif self.key:
-            extra_info = f" ({self.key})"
-        elif self.type:
-            extra_info = f" ({self.type})"
+        ret = ""
 
-        return f"{self.name}{extra_info}"
+        if self.name:
+            ret += self.name
+
+        if self.key or self.type or self.status:
+            ret += " ("
+
+        if self.key:
+            ret += self.key
+            if self.type:
+                ret += " "
+        if self.type:
+            ret += self.type
+
+        if self.key or self.type:
+            ret += ", "
+    
+        if self.status:
+            ret += status_to_string(self.status)
+        
+        ret += ")"
+
+        if self.comments:
+            ret += f" - {self.comments}"
+
+        return ret
 
         #return f"ID: {id}, Name: {name}, Type: {type_}, Key: {key}\nABC: {abc}, Status: {status}, Comments: {comments}"
+
+class Source(Enum):
+    SPOTIFY = "spotify"
+    YOUTUBE = "youtube"
+    LOCAL = "local"
 
 class Recording(BaseClass):
     name = CharField(null=True)
     url = TextField()
-    source = CharField() # spotify, youtube, local
+    source = CharField(choices=[(rec_source.value, rec_source.name) for rec_source in Source])
+    artist = CharField(null=True)
+    album = CharField(null=True)
+   
+    def __str__(self):
+        """
+        From Galway to Dublin / The Harp and Shamrock by Nathan Gourley, Laura Feddersen
+        """
+        return f"{self.name} by {self.artist}"
 
 # jump table: find all the recordings of a tune you have, and where they start
 # or find all the tunes in a recording that you have tracked
-class RecordingGTune(BaseClass):
-    tune = ForeignKeyField(GTune)
-    recording = ForeignKeyField(GTune)
+class RecordingTune(BaseClass):
+    tune = ForeignKeyField(Tune, backref='tune_recordings')
+    recording = ForeignKeyField(Recording, backref='recording_tunes')
     start_time_secs = IntegerField(null=True)
     end_time_secs = IntegerField(null=True)
 
+class Set(BaseClass):
+    name = CharField(null=True)
+
+class SetTune(BaseClass):
+    set_ = ForeignKeyField(Set, backref='set_tunes', on_delete='CASCADE')
+    tune = ForeignKeyField(Tune, backref='tune_sets', on_delete='CASCADE')
+    position = IntegerField()
+    indexes = (
+        (('set', 'tune'), True),  # Ensure a tune isn't duplicated in a set
+    )
+    ordering = ['position']  # Default ordering by position field
+
 def select_tune(header=None):
-    query = GTune.select()
+    query = Tune.select()
     tune_list = [t.name for t in query]
-    tune_name = fzf_select(tune_list, header=header)
+    tune_name, user_input = fzf_select(tune_list, header=header)
 
-    selected_tune = GTune.select().where(GTune.name == tune_name).get()
+    selected_tune = None
+    if tune_name:
+        selected_tune = Tune.select().where(Tune.name == tune_name).get_or_none()
 
-    return selected_tune
+    return selected_tune, user_input
+
+def select_recording(header=None):
+    query = Recording.select()
+
+    recording_list = [r.name for r in query]
+    rec_name, user_input = fzf_select(recording_list, header=header)
+
+    selected_rec = None
+    if rec_name:
+        selected_rec = Recording.select().where(Recording.name == rec_name).get()
+    
+    return selected_rec, user_input
 
 def get_tune_by_name(tune_name):
-    return GTune.select().where(GTune.name == tune_name).get()
+    return Tune.select().where(Tune.name == tune_name).get()
 
 def main():
     open_db()
