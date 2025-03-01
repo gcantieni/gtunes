@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from gtunes.db import GTune, Recording, init_db, close_db
+from gtunes.db import Tune, Recording, open_db, close_db
 from dotenv import load_dotenv
 from peewee import IntegrityError
 import os
@@ -15,7 +15,7 @@ class TuneListParser:
         self.state = StartLineParser(self.tunes)
 
     def parse(self):
-        init_db()
+        open_db()
         with open(self.file_location, "r") as file:
             for line in file:
                 #new_state = self.state.parse_line(line)
@@ -45,7 +45,7 @@ class LineParser:
         except IntegrityError as e:
             print(f"Duplicate name found in tune list: {tune.name}")
 
-    def parse_tune(self, line) -> GTune:
+    def parse_tune(self, line) -> Tune:
         line_parts = line.split("-")
 
         if len(line_parts) < 2:
@@ -66,10 +66,10 @@ class LineParser:
             stripped_name = m4a_match.group(1)
             m4a_path = os.path.join(self.recordings_dir, stripped_name)
             
-            this_tune = GTune(name=stripped_name)
-            Recording.create(name=stripped_name, path=m4a_path, tune=this_tune)
+            this_tune = Tune(name=stripped_name)
+            Recording.create(name=stripped_name, url=m4a_path, source="local", tune=this_tune)
         else:
-            this_tune = GTune(name=name)
+            this_tune = Tune(name=name)
     
         if len(line_parts) > 1:
             metadata = line_parts[1]

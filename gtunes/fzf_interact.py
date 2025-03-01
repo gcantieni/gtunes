@@ -21,8 +21,6 @@ def fzf_select(select_from, header=None):
     
 
     args.append("--print-query")
-    
-    # TODO: add --print-query and return query in different field
 
     # Open a subprocess for fzf
     process = subprocess.Popen(

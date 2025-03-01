@@ -1,10 +1,10 @@
 import curses
-from gtunes.db import init_db
+from gtunes.db import open_db
 from curses.textpad import Textbox, rectangle
 
 
 def tui(stdscr):
-    init_db()
+    open_db()
 
     # curses passes things in y, x order :///
     stdscr.addstr(0, 0, "Enter tune name")
