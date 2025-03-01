@@ -94,10 +94,10 @@ Specific friction points in my process: (I might not be able to solve all of the
 - Have all the information if I need it, but limit information if I don't: Sometimes I just want a simple list of tunes, sometimes I want to get all my Em tunes, sometimes I want just my jigs, sometimes I want an intersection of these things, sometimes I want to sheet music and the spotify recording and the youtube video. It depends on the context. My plaintext list annoys me when I wish I'd saved the spotify link I learned it from, but that stuff clutters up my list when I'm just looking through it.
 
 ### Minimum viable product
-- [ ] make flashcards: with the name or thesession id as input, take the first version off the session, extract the first abc version, and put it on an Anki flash card to be learned, perhaps with a recording of it as well
+- [x] make flashcards: with the name or thesession id as input, take the first version off the session, extract the first abc version, and put it on an Anki flash card to be learned, perhaps with a recording of it as well
 - [x] find spotify recordings of a tune and allow the user to quickly cycle through them to find a favorite.
-- [ ] list all the tunes off each track of a recording on spotify
-- [ ] maintain a tune database and export to csv and plaintext
+- [x] list all the tunes off each track of a recording on spotify
+- [x] maintain a tune database and export to csv 
 - [ ] save a voice memo or other recording with the tune in the tune database
 
 ### Nice to have
