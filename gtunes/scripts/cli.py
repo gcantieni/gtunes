@@ -20,9 +20,6 @@ import spotipy
 
 CURSOR="gtn> "
 
-def tui_wrapper(args): # args isn't used
-    wrapper(tui)
-
 def _edit_and_save_tune_interactively(tune):
     print(tune)
     help_menu = """h: help, n: name, k: key, t: type, a: status,
@@ -98,7 +95,7 @@ def _add_recording_to_tune_interactively(recording: db.Recording, tune: db.Tune)
     return True
 
 
-def edit(args):
+def tune_edit(args):
     ret = 0
     db.open_db()
     tune, _ = db.select_tune(header="Select tune to edit")
@@ -110,7 +107,7 @@ def edit(args):
     db.close_db()
     return ret
 
-def add(args):
+def tune_add(args):
     db.open_db()
 
     this_tune = db.Tune()
@@ -121,7 +118,7 @@ def add(args):
 
     db.close_db()
 
-def list(args):
+def tune_list(args):
     db.open_db()
     sel = db.Tune.select()
     print(f"Listing tunes.\nConditions:{"" if not args.name else " Name=" + args.name}\
@@ -160,13 +157,7 @@ def export(args):
     else:
         print("Error: no export option specified")
 
-
-def scrape_tunes(args):
-    tune_abc = scrape.get_abc_by_name(args.tune_name)
-    for abc in tune_abc:
-        print(abc + "\n")
-
-def rec(args):
+def rec_add(args):
     """
     Add a recording to the tune database.
     After adding, the user will be prompted if they want to associate it with
@@ -237,7 +228,7 @@ def rec(args):
     db.close_db()
     return ret
 
-def ls_recs(args):
+def rec_ls(args):
     db.open_db()
     sel = db.Recording.select()
     print("Listing recordings.")
@@ -247,7 +238,7 @@ def ls_recs(args):
     
     db.close_db()
 
-def add_set(args):
+def set_add(args):
     pass
 
 # Accept timestamps in the format 1:30 where 1 is the minutes and 30 is the seconds
@@ -395,7 +386,7 @@ def remove_title_from_abc(abc_string):
     
     return out_str
 
-def flash(args):
+def tune_flash(args):
     db.open_db()
 
     tune, _ = db.select_tune("Choose tune to put on flashcard")
@@ -456,51 +447,58 @@ def main():
 
     # Create parsers for subcommands
 
-    parser_tui = subparsers.add_parser("tui", help="Initiate an interactive version of the app.")
-    parser_tui.set_defaults(func=tui_wrapper)
+    # Tune subparser
+    parser_tune = subparsers.add_parser("tune", help="Manage tunes")
+    subparser_tune = parser_tune.add_subparsers(required=True)
 
-    parser_add = subparsers.add_parser("add", help="Add a tune")
-    parser_add.set_defaults(func=add)
+    parser_tune_add = subparser_tune.add_parser("add", help="Add a tune")
+    parser_tune_add.set_defaults(func=tune_add)
 
-    parser_rec = subparsers.add_parser("rec", help="Add tune recordings")
-    parser_rec.set_defaults(func=rec)
-    parser_rec.add_argument("url", help="File, Spotify, or YouTube url of the recording")
+    parser_tune_list = subparser_tune.add_parser("ls", parents=[parent_parser], help="List tunes")
+    parser_tune_list.set_defaults(func=tune_list)
+    parser_tune_list.add_argument("-n", dest="name", help="Name of tune")
+    parser_tune_list.add_argument("-t", dest="type", help="Type of tune (jig, reel, etc.)")
+    parser_tune_list.add_argument("-s", dest="status", help="Status of tune. How well the tune is known, int from 1-5.")
 
-    parser_rec = subparsers.add_parser("recs", help="List tune recordings")
-    parser_rec.set_defaults(func=ls_recs)
+    parser_tune_edit = subparser_tune.add_parser("edit", help="Edit a tune")
+    parser_tune_edit.set_defaults(func=tune_edit)
 
-    parser_set = subparsers.add_parser("set", help="Add a set of tunes. composed of tunes in your tune database")
-    parser_set.set_defaults(func=add_set)
+    parser_spot = subparser_tune.add_parser("spot", help="Scrape albums of thesession.org by name and search for them on spotify.")
+    parser_spot.set_defaults(func=spot)
+    parser_spot.add_argument("name", help="Name of the tune.")
 
-    parser_abc = subparsers.add_parser("abc", help="Find and save abc notation for a tune")
+    parser_flash = subparser_tune.add_parser("flash", help="Make tune flashcards")
+    parser_flash.set_defaults(func=tune_flash)
+
+    parser_abc = subparser_tune.add_parser("abc", help="Find and save abc notation for a tune")
     parser_abc.set_defaults(func=abc)
     parser_abc.add_argument("-f", action="store_true", help="Use the first abc without confirming")
 
-    parser_edit = subparsers.add_parser("edit", help="Edit a tune")
-    parser_edit.set_defaults(func=edit)
 
-    parser_flash = subparsers.add_parser("flash", help="Make tune flashcards")
-    parser_flash.set_defaults(func=flash)
+    # Rec subparser
+    parser_rec = subparsers.add_parser("rec", help="Manage recordings")
+    rec_subparser = parser_rec.add_subparsers(required=True)
 
-    parser_list = subparsers.add_parser("ls", parents=[parent_parser], help="List tunes")
-    parser_list.set_defaults(func=list)
-    parser_list.add_argument("-n", dest="name", help="Name of tune")
-    parser_list.add_argument("-t", dest="type", help="Type of tune (jig, reel, etc.)")
-    parser_list.add_argument("-s", dest="status", help="Status of tune. How well the tune is known, int from 1-5.")
+    parser_rec_add = rec_subparser.add_parser("add", help="Add new recording")
+    parser_rec_add.add_argument("url", help="File, Spotify, or YouTube url of the recording")
+    parser_rec_add.set_defaults(func=rec_add)
 
+    parser_rec_ls = rec_subparser.add_parser("ls", help="List recordings")
+    parser_rec_ls.set_defaults(func=rec_ls)
+
+    # Set subparser
+    parser_set = subparsers.add_parser("set", help="Manage sets of tunes")
+    subparser_set = parser_set.add_subparsers(required=True)
+    parser_set_add = subparser_set.add_parser("add", help="Add a set of tunes. composed of tunes in your tune database")
+    parser_set_add.set_defaults(func=set_add)
+
+    # Parse subparser
     parser_parse = subparsers.add_parser("parse", parents=[parent_parser], help="Add list")
     parser_parse.set_defaults(func=parse_)
     parser_parse.add_argument("infile", help="The path to the tune list to parse")
     parser_parse.add_argument("-o", dest="outfile", help="The name of the output file (db will be appended)")
 
-    parser_scrape = subparsers.add_parser("scrape")
-    parser_scrape.set_defaults(func=scrape_tunes)
-    parser_scrape.add_argument("tune_name", help="Name of tune to find abc settings of.")
-
-    parser_spot = subparsers.add_parser("spot", help="Scrape albums of thesession.org by name and search for them on spotify.")
-    parser_spot.set_defaults(func=spot)
-    parser_spot.add_argument("name", help="Name of the tune.")
-
+    # Export subparser
     parser_export = subparsers.add_parser("export", help="Export tune database to different formats.")
     parser_export.set_defaults(func=export)
     parser_export.add_argument("-c", help="Export to csv", action="store_true")
