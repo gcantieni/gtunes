@@ -6,8 +6,6 @@ from gtunes import scrape
 from gtunes import db
 from gtunes import audio
 from dotenv import load_dotenv
-from gtunes.tui import tui
-from curses import wrapper
 import argparse
 import csv
 import os
@@ -17,8 +15,6 @@ import json
 import urllib.request
 import re
 import questionary
-
-CURSOR="gtn> "
 
 # ===============
 # General helpers
