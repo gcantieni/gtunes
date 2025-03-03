@@ -20,6 +20,18 @@ import spotipy
 
 CURSOR="gtn> "
 
+# ===============
+# General helpers
+# ===============
+
+# Accept timestamps in the format 1:30 where 1 is the minutes and 30 is the seconds
+def _timestamp_to_seconds(timestamp):
+    sum(x * int(t) for x, t in zip([60, 1], timestamp.split(":")))
+
+# ================
+# Tune subcommands
+# ================
+
 def _edit_and_save_tune_interactively(tune):
     print(tune)
     help_menu = """h: help, n: name, k: key, t: type, a: status,
@@ -94,7 +106,6 @@ def _add_recording_to_tune_interactively(recording: db.Recording, tune: db.Tune)
 
     return True
 
-
 def tune_edit(args):
     ret = 0
     db.open_db()
@@ -133,12 +144,202 @@ def tune_list(args):
 
     for tune in sel:
         print(tune)
+
+def tune_abc(args):
+    db.open_db()
+    tune, _ = db.select_tune("Choose a tune to get the abc of.")
+
+    if not tune.abc:
+        _add_first_abc_setting_to_tune(tune)
+    else:
+        print("Using stored abc setting")
+
+    filename = tune.name.replace(" ", "-")
+
+    _convert_abc_to_svg(tune.abc, filename)
+
+    db.close_db()
+
+def _search_spotify_interactively(tune_ts_id: str = None, tune_name: str = None, existing_tune : db.Tune = None):
+    sp = audio.connect_to_spotify()
+
+    if existing_tune is not None:
+        if existing_tune.ts_id:
+            tune_ts_id = existing_tune.ts_id
+        elif existing_tune.name:
+            tune_name = existing_tune.name
+
+    if tune_ts_id is not None:
+        queue = scrape.scrape_recording_data_async(tune_id=tune_ts_id)
+    elif tune_name is not None:
+        queue = scrape.scrape_recording_data_async(tune_name=tune_name)
+    else:
+        print("Error: Supplied neither tune name not thesession id")
+        return []
+
+    saved_track_data = []
+    while True:
+        scrape_data = queue.get()
+        if scrape_data is None:
+            break
+        album_name = scrape_data["album_name"]
+        alb = audio.spot_search_albums(album_name, sp, artist_name=scrape_data['artist_name'])
+        if alb:
+            print(f"Album: {album_name}, track tunes: {scrape_data["track_tunes"]}")
+            track_data = audio.spot_play_nth_album_track(alb['id'], scrape_data['track_number'], sp)
+
+            if not track_data:
+                print(f"No track data for album {album_name}, skipping")
+                continue
+
+            print(f"Track name: {track_data['name']}")
+
+            user_input = input("s: save, n: next q: quit > ")
+            if user_input == "s":
+                # TODO: see if we already have a recording matching this one
+                # where name and artist are the same
+                #if db.Recording.select().where(db.Recording.name == scrape_data["name"])
+                start_time_seconds = _timestamp_to_seconds(input("Start time (MM:SS): "))
+                end_time_time_seconds = _timestamp_to_seconds(input("End time (MM:SS): "))
+                save_data = scrape_data
+                save_data = track_data["name"]
+                save_data["start_time_seconds"] = start_time_seconds
+                save_data["end_time_seconds"]  = end_time_time_seconds
+                save_data["album_name"] = album_name
+                save_data["spot_album_id"] = alb['id']
+                save_data["spot_id"] = track_data["id"]
+                saved_track_data.append(save_data)
+            elif user_input == "q":
+                print("bye")
+                break
+            elif user_input == "n":
+                continue
+    print("Done playing albums.")
+    if saved_track_data:
+        print(f"Save data: {saved_track_data}")
+        db.open_db()
+
+        for recording in saved_track_data:
+            print(f"Saving new recording {recording}")
+            audio.play_track(recording["spot_id"])
+            if input("Confirm? (y/n) "):
+                db.Recording.create(name=saved_track_data["name"], url=saved_track_data["spot_id"], source=db.Source.SPOTIFY)
+                print("Saved to recording database")
+            else:
+                print("Not saving this recording")
+                continue
+        db.close_db()
+
+
+    return saved_track_data
+
+def tune_spot(args):
+    _search_spotify_interactively(tune_name=args.name)
+
+# Scrapes the session for abc, and adds it to the tune with the specified name.
+def _add_first_abc_setting_to_tune(tune):
+    print(f"Searching the session for abc for {tune.name}...")
+    abc_settings = scrape.get_abc_by_name(tune.name)
+
+    tune.abc = abc_settings[0]
+
+def _convert_abc_to_svg(abc_string, output_file_name):
+    tmp_name = "tmp.abc"
+    with open(tmp_name, "w+") as tmpfile:
+        tmpfile.write(abc_string)
+
+    # -g means svg, one tune per file
+    subprocess.run(["abcm2ps", "-g", tmp_name, "-O", output_file_name])
+
+def _ac_request(action, **params):
+    return {'action': action, 'params': params, 'version': 6}
+
+def _ac_invoke(action, **params):
+    requestJson = json.dumps(_ac_request(action, **params)).encode('utf-8')
+    response = json.load(urllib.request.urlopen(urllib.request.Request('http://127.0.0.1:8765', requestJson)))
+    if len(response) != 2:
+        raise Exception('response has an unexpected number of fields')
+    if 'error' not in response:
+        raise Exception('response is missing required error field')
+    if 'result' not in response:
+        raise Exception('response is missing required result field')
+    if response['error'] is not None:
+        raise Exception(response['error'])
+    return response['result']
+
+# Returns the abc_string but with no title field
+def _remove_title_from_abc(abc_string):
+    out_str = ""
+    for line in abc_string.split("\n"):
+        if re.match(r"^T:.*", line):
+            print(f"Skipping line with title in it: {line}")
+        else:
+            out_str += line + "\n"
     
+    return out_str
+
+def tune_flash(args):
+    db.open_db()
+
+    tune, _ = db.select_tune("Choose tune to put on flashcard")
+
+    if not tune:
+        print("No tune selected.")
+        return 1
+
+    if not tune.abc:
+        _add_first_abc_setting_to_tune(tune)
+    else:
+        print("Using stored abc for tune.")
+
+    tune_name_for_file = tune.name.replace(" ", "-")
+    
+    # Remove the name for the abc so that the flashcard doesn't give away the tune name.
+    _convert_abc_to_svg(_remove_title_from_abc(tune.abc), tune_name_for_file)
+
+    file_name = tune_name_for_file + "001.svg" # For some reason abcm2svg appends "001" to the filename
+    file_path = os.path.abspath(file_name)
+
+    load_dotenv()
+    deck_name = os.getenv("GTUNES_ANKI_DECK", "GTunes")
+    _ac_invoke('createDeck', deck=deck_name) # This won't do anything if deck was already created earlier
+
+    _ac_invoke("addNote", note={
+        "deckName": deck_name,
+        "modelName": "Basic",
+        "fields": {
+            "Front": tune.name,
+            "Back": "",
+        },
+        "picture": [{
+            "path": file_path,
+            "filename": file_name,
+            "fields": [
+                "Back"
+            ]
+        }]
+    })
+
+    if not tune.status or tune.status <= 2:
+        should_bump = input("Bump tune status to 3 now that it's in the flashcard deck? (y/n) ")
+        if should_bump == "y":
+            print("Tune acquired!")
+            tune.status = 3
+
+    db.close_db()
+    
+# =============
+# Parse command
+# =============
 
 def parse_(args):
     parser = parse.TuneListParser(args.infile)
     parser.parse()
     parser.print_tunes()
+
+# ==============
+# Export command
+# ==============
 
 def export(args):
     if args.c:
@@ -156,6 +357,17 @@ def export(args):
             db.close_db()
     else:
         print("Error: no export option specified")
+
+# ===========
+# Set command
+# ===========
+
+def set_add(args):
+    pass
+
+# =============
+# Flash command
+# =============
 
 def rec_add(args):
     """
@@ -238,203 +450,6 @@ def rec_ls(args):
     
     db.close_db()
 
-def set_add(args):
-    pass
-
-# Accept timestamps in the format 1:30 where 1 is the minutes and 30 is the seconds
-def _timestamp_to_seconds(timestamp):
-    sum(x * int(t) for x, t in zip([60, 1], timestamp.split(":")))
-
-def _search_spotify_interactively(tune_ts_id: str = None, tune_name: str = None, existing_tune : db.Tune = None):
-    sp = audio.connect_to_spotify()
-
-    if existing_tune is not None:
-        if existing_tune.ts_id:
-            tune_ts_id = existing_tune.ts_id
-        elif existing_tune.name:
-            tune_name = existing_tune.name
-
-    if tune_ts_id is not None:
-        queue = scrape.scrape_recording_data_async(tune_id=tune_ts_id)
-    elif tune_name is not None:
-        queue = scrape.scrape_recording_data_async(tune_name=tune_name)
-    else:
-        print("Error: Supplied neither tune name not thesession id")
-        return []
-
-    saved_track_data = []
-    while True:
-        scrape_data = queue.get()
-        if scrape_data is None:
-            break
-        album_name = scrape_data["album_name"]
-        alb = audio.spot_search_albums(album_name, sp, artist_name=scrape_data['artist_name'])
-        if alb:
-            print(f"Album: {album_name}, track tunes: {scrape_data["track_tunes"]}")
-            track_data = audio.spot_play_nth_album_track(alb['id'], scrape_data['track_number'], sp)
-
-            if not track_data:
-                print(f"No track data for album {album_name}, skipping")
-                continue
-
-            print(f"Track name: {track_data['name']}")
-
-            user_input = input("s: save, n: next q: quit > ")
-            if user_input == "s":
-                # TODO: see if we already have a recording matching this one
-                # where name and artist are the same
-                #if db.Recording.select().where(db.Recording.name == scrape_data["name"])
-                start_time_seconds = _timestamp_to_seconds(input("Start time (MM:SS): "))
-                end_time_time_seconds = _timestamp_to_seconds(input("End time (MM:SS): "))
-                save_data = scrape_data
-                save_data = track_data["name"]
-                save_data["start_time_seconds"] = start_time_seconds
-                save_data["end_time_seconds"]  = end_time_time_seconds
-                save_data["album_name"] = album_name
-                save_data["spot_album_id"] = alb['id']
-                save_data["spot_id"] = track_data["id"]
-                saved_track_data.append(save_data)
-            elif user_input == "q":
-                print("bye")
-                break
-            elif user_input == "n":
-                continue
-    print("Done playing albums.")
-    if saved_track_data:
-        print(f"Save data: {saved_track_data}")
-        db.open_db()
-
-        for recording in saved_track_data:
-            print(f"Saving new recording {recording}")
-            audio.play_track(recording["spot_id"])
-            if input("Confirm? (y/n) "):
-                db.Recording.create(name=saved_track_data["name"], url=saved_track_data["spot_id"], source=db.Source.SPOTIFY)
-                print("Saved to recording database")
-            else:
-                print("Not saving this recording")
-                continue
-        db.close_db()
-
-
-    return saved_track_data
-
-def spot(args):
-    _search_spotify_interactively(tune_name=args.name)
-
-def open_file(filepath):
-    if sys.platform == "win32":  # Windows
-        os.startfile(filepath)
-    elif sys.platform == "darwin":  # macOS
-        subprocess.run(["open", filepath])
-    else:  # Linux
-        subprocess.run(["xdg-open", filepath])
-
-# Scrapes the session for abc, and adds it to the tune with the specified name.
-def add_first_abc_setting_to_tune(tune):
-    print(f"Searching the session for abc for {tune.name}...")
-    abc_settings = scrape.get_abc_by_name(tune.name)
-
-    tune.abc = abc_settings[0]
-
-def convert_abc_to_svg(abc_string, output_file_name):
-    tmp_name = "tmp.abc"
-    with open(tmp_name, "w+") as tmpfile:
-        tmpfile.write(abc_string)
-
-    # -g means svg, one tune per file
-    subprocess.run(["abcm2ps", "-g", tmp_name, "-O", output_file_name])
-
-def abc(args):
-    db.open_db()
-    tune, _ = db.select_tune("Choose a tune to get the abc of.")
-
-    if not tune.abc:
-        add_first_abc_setting_to_tune(tune)
-    else:
-        print("Using stored abc setting")
-
-    filename = tune.name.replace(" ", "-")
-
-    convert_abc_to_svg(tune.abc, filename)
-
-    db.close_db()
-
-def _ac_request(action, **params):
-    return {'action': action, 'params': params, 'version': 6}
-
-def _ac_invoke(action, **params):
-    requestJson = json.dumps(_ac_request(action, **params)).encode('utf-8')
-    response = json.load(urllib.request.urlopen(urllib.request.Request('http://127.0.0.1:8765', requestJson)))
-    if len(response) != 2:
-        raise Exception('response has an unexpected number of fields')
-    if 'error' not in response:
-        raise Exception('response is missing required error field')
-    if 'result' not in response:
-        raise Exception('response is missing required result field')
-    if response['error'] is not None:
-        raise Exception(response['error'])
-    return response['result']
-
-# Returns the abc_string but with no title field
-def remove_title_from_abc(abc_string):
-    out_str = ""
-    for line in abc_string.split("\n"):
-        if re.match(r"^T:.*", line):
-            print(f"Skipping line with title in it: {line}")
-        else:
-            out_str += line + "\n"
-    
-    return out_str
-
-def tune_flash(args):
-    db.open_db()
-
-    tune, _ = db.select_tune("Choose tune to put on flashcard")
-
-    if not tune:
-        print("No tune selected.")
-        return 1
-
-    if not tune.abc:
-        add_first_abc_setting_to_tune(tune)
-    else:
-        print("Using stored abc for tune.")
-
-    tune_name_for_file = tune.name.replace(" ", "-")
-    
-    # Remove the name for the abc so that the flashcard doesn't give away the tune name.
-    convert_abc_to_svg(remove_title_from_abc(tune.abc), tune_name_for_file)
-
-    file_name = tune_name_for_file + "001.svg" # For some reason abcm2svg appends "001" to the filename
-    file_path = os.path.abspath(file_name)
-
-    load_dotenv()
-    deck_name = os.getenv("GTUNES_ANKI_DECK", "GTunes")
-    _ac_invoke('createDeck', deck=deck_name) # This won't do anything if deck was already created earlier
-
-    _ac_invoke("addNote", note={
-        "deckName": deck_name,
-        "modelName": "Basic",
-        "fields": {
-            "Front": tune.name,
-            "Back": "",
-        },
-        "picture": [{
-            "path": file_path,
-            "filename": file_name,
-            "fields": [
-                "Back"
-            ]
-        }]
-    })
-
-    if not tune.status or tune.status <= 2:
-        should_bump = input("Bump tune status to 3 now that it's in the flashcard deck? (y/n) ")
-        if should_bump == "y":
-            print("Tune acquired!")
-            tune.status = 3
-
-    db.close_db()
 
 def main():
     parser = argparse.ArgumentParser(description="Add and manipulate traditional tunes.")
@@ -464,14 +479,14 @@ def main():
     parser_tune_edit.set_defaults(func=tune_edit)
 
     parser_spot = subparser_tune.add_parser("spot", help="Scrape albums of thesession.org by name and search for them on spotify.")
-    parser_spot.set_defaults(func=spot)
+    parser_spot.set_defaults(func=tune_spot)
     parser_spot.add_argument("name", help="Name of the tune.")
 
     parser_flash = subparser_tune.add_parser("flash", help="Make tune flashcards")
     parser_flash.set_defaults(func=tune_flash)
 
     parser_abc = subparser_tune.add_parser("abc", help="Find and save abc notation for a tune")
-    parser_abc.set_defaults(func=abc)
+    parser_abc.set_defaults(func=tune_abc)
     parser_abc.add_argument("-f", action="store_true", help="Use the first abc without confirming")
 
 
