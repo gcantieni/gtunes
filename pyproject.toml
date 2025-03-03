@@ -12,6 +12,7 @@ dependencies = [
     "spotipy",
     "Levenshtein",
     "peewee",
+    "questionary"
 ]
 
 [project.scripts]

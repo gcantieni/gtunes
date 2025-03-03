@@ -16,7 +16,7 @@ import subprocess
 import json
 import urllib.request
 import re
-import spotipy
+import questionary
 
 CURSOR="gtn> "
 
@@ -32,47 +32,45 @@ def _timestamp_to_seconds(timestamp):
 # Tune subcommands
 # ================
 
-def _edit_and_save_tune_interactively(tune):
+def _str_default(value):
+    return value if value is not None else ""
+
+def _get_val_from_dict(value_name, the_dict):
+    """
+    Args:
+        value_name: the name of the value to retreive from the dictionary
+        the_dict: dictionary to get value from
+    Returns:
+        Either the value, or None instead of falsy values. This helps with the database. 
+    """
+    val = the_dict[value_name]
+    return val if val else None
+
+def _edit_and_save_tune_interactively(tune: db.Tune):
+    """
+    Edits the input tune in-place, defaulting to the values already present in the tune.
+    """
+    tune_type_choices = [t.name for t in db.TuneType]
+    tune_type_choices.append("")
+
+    status_choices = [s.name for s in db.Status]
+    status_choices.append("")
+
+    responses = questionary.form(
+        name = questionary.text("Name", default=_str_default(tune.name)),
+        status = questionary.select("Status", choices=status_choices),
+        tune_type = questionary.select("Type", choices=tune_type_choices, default=_str_default(tune.type)),
+        key = questionary.text("Key", default=_str_default(tune.key)),
+        comments = questionary.text("Comment", default=_str_default(tune.comments)),
+    ).ask()
+
+    tune.name = _get_val_from_dict("name", responses)
+    tune.status = db.Status[_get_val_from_dict("status", responses)]
+    tune.type = _get_val_from_dict("tune_type", responses)
+    tune.key = _get_val_from_dict("key", responses)
+    tune.comments = _get_val_from_dict("comments", responses)
+
     print(tune)
-    help_menu = """h: help, n: name, k: key, t: type, a: status,
-r: add recording, c: comment, o: search spotify, 
-p: print, s: save, q: quit"""
-    print(help_menu)
-    while True:
-        opt = input(CURSOR)
-        if opt == "n":
-            tune.name = input("Name: ")
-        elif opt == "k":
-            tune.key = input("Key: ")
-        elif opt == "t":
-            tune.type = input("Type: ")
-        elif opt == "c":
-            tune.comments = input("Comment: ")
-        elif opt == "a":
-            tune.status = input("Status: ")
-        elif opt == "r":
-            _add_recording_to_tune_interactively(None, tune)
-        elif opt == "o":
-            save_data = _search_spotify_interactively(tune_name=tune.name)
-
-            for rec_data in save_data:
-                recording = db.Recording.create(url=rec_data["spot_id"], name=rec_data["name"], artist=rec_data["artist"])
-                if not _add_recording_to_tune_interactively(recording, tune):
-                    print("Done adding recordings")
-                    break
-
-        elif opt == "p":
-            print(tune)
-        elif opt == "h":
-            print(help_menu)
-        elif opt == "q":
-            should_save = False
-            print("Bye")
-            break
-        elif opt == "s":
-            print(f"Saving {tune.name}")
-            tune.save()
-            break
 
 def _add_recording_to_tune_interactively(recording: db.Recording, tune: db.Tune):
     """
@@ -108,14 +106,18 @@ def _add_recording_to_tune_interactively(recording: db.Recording, tune: db.Tune)
 
 def tune_edit(args):
     ret = 0
+
     db.open_db()
+
     tune, _ = db.select_tune(header="Select tune to edit")
     if not tune:
         print("Tune not found.")
         ret = 1
     else:
         _edit_and_save_tune_interactively(tune)
+
     db.close_db()
+
     return ret
 
 def tune_add(args):
@@ -161,6 +163,10 @@ def tune_abc(args):
     db.close_db()
 
 def _search_spotify_interactively(tune_ts_id: str = None, tune_name: str = None, existing_tune : db.Tune = None):
+    """
+    Should be called with the database open.
+    """
+
     sp = audio.connect_to_spotify()
 
     if existing_tune is not None:
@@ -182,6 +188,7 @@ def _search_spotify_interactively(tune_ts_id: str = None, tune_name: str = None,
         scrape_data = queue.get()
         if scrape_data is None:
             break
+
         album_name = scrape_data["album_name"]
         alb = audio.spot_search_albums(album_name, sp, artist_name=scrape_data['artist_name'])
         if alb:
@@ -193,48 +200,44 @@ def _search_spotify_interactively(tune_ts_id: str = None, tune_name: str = None,
                 continue
 
             print(f"Track name: {track_data['name']}")
-
-            user_input = input("s: save, n: next q: quit > ")
-            if user_input == "s":
+            if questionary.confirm("Save track to your library?", default=False).ask():
                 # TODO: see if we already have a recording matching this one
                 # where name and artist are the same
                 #if db.Recording.select().where(db.Recording.name == scrape_data["name"])
-                start_time_seconds = _timestamp_to_seconds(input("Start time (MM:SS): "))
-                end_time_time_seconds = _timestamp_to_seconds(input("End time (MM:SS): "))
-                save_data = scrape_data
-                save_data = track_data["name"]
-                save_data["start_time_seconds"] = start_time_seconds
-                save_data["end_time_seconds"]  = end_time_time_seconds
-                save_data["album_name"] = album_name
-                save_data["spot_album_id"] = alb['id']
-                save_data["spot_id"] = track_data["id"]
-                saved_track_data.append(save_data)
-            elif user_input == "q":
-                print("bye")
-                break
-            elif user_input == "n":
-                continue
+
+                start_time_secs = _timestamp_to_seconds(questionary.text("Start time (MM:SS)", default="0:00").ask())
+                end_time_time_secs = _timestamp_to_seconds(questionary.text("End time (MM:SS)").ask())
+
+                db_rec = db.Recording.create(
+                    name=track_data["name"], 
+                    url=track_data["id"],
+                    album_name=album_name,
+                    source=db.Source.SPOTIFY)
+
+                if existing_tune:
+                    db.RecordingTune.create(
+                        tune=existing_tune, 
+                        recording=db_rec, 
+                        start_time_secs=start_time_secs, 
+                        end_time_time_secs=end_time_time_secs)
+
     print("Done playing albums.")
-    if saved_track_data:
-        print(f"Save data: {saved_track_data}")
-        db.open_db()
-
-        for recording in saved_track_data:
-            print(f"Saving new recording {recording}")
-            audio.play_track(recording["spot_id"])
-            if input("Confirm? (y/n) "):
-                db.Recording.create(name=saved_track_data["name"], url=saved_track_data["spot_id"], source=db.Source.SPOTIFY)
-                print("Saved to recording database")
-            else:
-                print("Not saving this recording")
-                continue
-        db.close_db()
-
 
     return saved_track_data
 
 def tune_spot(args):
-    _search_spotify_interactively(tune_name=args.name)
+    db.open_db()
+
+    if args.name:
+        _search_spotify_interactively(tune_name=args.name)
+    else:
+        selected_tune, user_input = db.select_tune()
+        if selected_tune:
+            _search_spotify_interactively(existing_tune=selected_tune)
+        elif questionary.confirm(f"Search for {user_input}?").ask():
+             _search_spotify_interactively(tune_name=user_input)
+
+    db.close_db()
 
 # Scrapes the session for abc, and adds it to the tune with the specified name.
 def _add_first_abc_setting_to_tune(tune):
@@ -480,7 +483,7 @@ def main():
 
     parser_spot = subparser_tune.add_parser("spot", help="Scrape albums of thesession.org by name and search for them on spotify.")
     parser_spot.set_defaults(func=tune_spot)
-    parser_spot.add_argument("name", help="Name of the tune.")
+    parser_spot.add_argument("--name", help="Name of the tune.", required=False)
 
     parser_flash = subparser_tune.add_parser("flash", help="Make tune flashcards")
     parser_flash.set_defaults(func=tune_flash)

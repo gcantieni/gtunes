@@ -21,27 +21,29 @@ def close_db():
 class BaseClass(Model):
     class Meta:
         database = db
+    
+class Status(Enum):
+    TODO = 1
+    CAN_PLAY = 2
+    CAN_START = 3
+    IN_SET = 4
+    MASTERED = 5
 
-# TODO: could represent based on color, like green for learned
-# TODO: use this
-def status_to_string(status : int) -> str:
-    if status == 0:
-        return "Status not defined"
-    if status == 1:
-        return "todo"
-    if status == 2:
-        return "flash"
-    if status == 3:
-        return "set"
-    if status == 4:
-        return "learned"
+class TuneType(Enum):
+    REEL = 1
+    JIG = 2
+    POLKA = 3
+    SLIDE = 4
+
 
 # Start simple, each tune just has one recording, one spotify id, one path to an mp3
 class Tune(BaseClass):
     name = CharField(unique=True)
     key = CharField(null=True)
-    type = CharField(null=True)
-    status = IntegerField(null=True)
+    # Storing full string so that looking through the database is easier
+    # from an external viewer
+    type = CharField(null=True, choices=[t.name for t in TuneType])
+    status = IntegerField(choices=[(s.value, s.name) for s in Status], default=Status["TODO"])
     abc = TextField(null=True)
     ts_id = IntegerField(null=True) # Thesession id
     #itinfo_id = IntegerField() # Someday might use irishtunes.info
@@ -58,30 +60,33 @@ class Tune(BaseClass):
         if self.name:
             ret += self.name
 
+        opened_paren = False
         if self.key or self.type or self.status:
             ret += " ("
+            opened_paren = True
 
         if self.key:
             ret += self.key
             if self.type:
                 ret += " "
+
         if self.type:
-            ret += self.type
+            ret += self.type.lower()
 
         if self.key or self.type:
             ret += ", "
     
+        # TODO: could represent based on color, like green for learned
         if self.status:
-            ret += status_to_string(self.status)
+            ret += Status(self.status).name
         
-        ret += ")"
+        if opened_paren:
+            ret += ")"
 
         if self.comments:
             ret += f" - {self.comments}"
 
         return ret
-
-        #return f"ID: {id}, Name: {name}, Type: {type_}, Key: {key}\nABC: {abc}, Status: {status}, Comments: {comments}"
 
 class Source(Enum):
     SPOTIFY = "spotify"
@@ -122,6 +127,11 @@ class SetTune(BaseClass):
     ordering = ['position']  # Default ordering by position field
 
 def select_tune(header=None):
+    """
+    Returns:
+        selected_tune (db.Tune)
+        user_input (str)
+    """
     query = Tune.select()
     tune_list = [t.name for t in query]
     tune_name, user_input = fzf_select(tune_list, header=header)

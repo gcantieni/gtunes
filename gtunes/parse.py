@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from gtunes.db import Tune, Recording, open_db, close_db
+from gtunes.db import Tune, Recording, open_db, close_db, Status
 from dotenv import load_dotenv
 from peewee import IntegrityError
 import os
@@ -111,7 +111,7 @@ class LearnLineParser(LineParser):
         
         tune = self.parse_tune(line)
         if tune:
-            tune.status = 1
+            tune.status = Status.TODO.value
             self.add_tune(tune)
 
         return self
@@ -123,7 +123,7 @@ class PracticeLineParser(LineParser):
 
         tune = self.parse_tune(line)
         if tune:
-            tune.status = 2
+            tune.status = Status.CAN_PLAY.value
             self.add_tune(tune)
 
         return self
@@ -157,7 +157,7 @@ class LearnedTuneParser(LineParser):
         if tune:
             tune.type = self.tune_type
             tune.key = self.key
-            tune.status = 3
+            tune.status = Status.CAN_START.value
             self.add_tune(tune)
 
         return self
