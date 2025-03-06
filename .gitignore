@@ -9,3 +9,5 @@ __pycache__/
 .direnv
 .DS_Store
 .vscode
+.genv
+gtunes.egg-info/*
