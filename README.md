@@ -103,7 +103,7 @@ Specific friction points in my process: (I might not be able to solve all of the
 ### Nice to have
 - [ ] save a playlist of favorite recordings of a tune within the app
 - [ ] add to the tune database from phone either through todoist integration, synced plaintext note, a phone app, or a web request
-- [ ] store a list of sets that back links to each tune (use obsidian?)
+- [x] store a list of sets that back links to each tune (use obsidian?)
 - [ ] built in metronome
 - [ ] built in slow-down feature for mp3s of tunes
 - [ ] store my own variations of a tune in abc or mp3 form

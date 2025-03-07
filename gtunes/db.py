@@ -102,9 +102,13 @@ class Recording(BaseClass):
    
     def __str__(self):
         """
+        Want something like:
         From Galway to Dublin / The Harp and Shamrock by Nathan Gourley, Laura Feddersen
         """
-        return f"{self.name} by {self.artist}"
+        out = self.name
+        if self.artist:
+            out += f" by {self.artist}"
+        return out
 
 # jump table: find all the recordings of a tune you have, and where they start
 # or find all the tunes in a recording that you have tracked

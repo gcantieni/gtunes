@@ -3,6 +3,7 @@
 import requests
 import queue
 import threading
+from dataclasses import dataclass
 from bs4 import BeautifulSoup
 
 debug=False
@@ -101,23 +102,34 @@ def find_track_number(recording_id, tune_id):
 
 
     return { "track_number": track_number, "tune_number": tune_number, "track_string": set_string }
-
-# This is a long-running operation, so make an async version.
-# Returns a queue that the consumer can get album data from.
-def scrape_recording_data_async(tune_name=None, tune_id=None, limit=None):
-    q = queue.Queue()
-    t = threading.Thread(target=scrape_recording_data,
-                         daemon=True, # Exit when main thread exits
-                         kwargs={"tune_name": tune_name,
-                                    "tune_id": tune_id, 
-                                    "limit": limit,
-                                    "data_queue": q})
-    t.start()
-    return q
     
+@dataclass
+class ScrapeRecordingData:
+    album_name: str
+    track_number: int
+    tune_number: int
+    track_tunes: str
+    artist_name: str
 
-
-def scrape_recording_data(tune_name=None, tune_id=None, limit=None, data_queue=None):
+def scrape_recording_data(tune_name: str = None, tune_id: str = None, limit: int = None, 
+                          data_queue: queue.Queue = None, stop_event: threading.Event = None) -> queue.Queue | list:
+    """
+    For a given tune name or id (one required)
+     - scrape the page of all recordings of that tune from the session
+     - return all tune data gleaned TheSession
+    
+    Args:
+        tune_name: name of the tune
+        tune_id: TheSession id of the tune (more accurate, otherwise the first result
+            from search will be used)
+        limit: optionally limit the number
+        data_queue: optionally return ScrapRecordingData to the input queue instead of
+            returning it as a list at the end
+        stop_event: optionally stop this function part way through if being run in a thread
+    
+    Returns:
+        Either a list of ScrapeRecordingData, or None if a queue is being used.
+    """
     if not tune_name and not tune_id:
         print("Must specify either tune name or tune id")
     
@@ -133,8 +145,11 @@ def scrape_recording_data(tune_name=None, tune_id=None, limit=None, data_queue=N
     recording_list_items = soup.find_all("li", class_="manifest-item")
 
     max_items = len(recording_list_items) if not limit else min(len(recording_list_items), limit)
-    output = []
+    output = [] if not data_queue else None
     for i in range(max_items):
+        if stop_event and stop_event.is_set():
+            break
+
         li = recording_list_items[i]
 
         album_link = li.find("a", class_="manifest-item-title")
@@ -156,13 +171,12 @@ def scrape_recording_data(tune_name=None, tune_id=None, limit=None, data_queue=N
         #track_number, tune_number = find_track_number(album_id, tune_id)
         track_data = find_track_number(album_id, tune_id)
 
-        entry = {
-            "album_name" : name,
-            "track_number": track_data["track_number"], 
-            "tune_number": track_data["tune_number"], 
-            "track_tunes": track_data["track_string"],
-            "artist_name": artist_name,
-        }
+        entry = ScrapeRecordingData(album_name=name, 
+                                    track_number=track_data["track_number"], 
+                                    tune_number=track_data["tune_number"],
+                                    track_tunes=track_data["track_string"],
+                                    artist_name=artist_name)
+
         if data_queue:
             data_queue.put(entry)
         else:

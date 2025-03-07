@@ -6,6 +6,8 @@ from gtunes import scrape
 from gtunes import db
 from gtunes import audio
 from dotenv import load_dotenv
+from gtunes.util import timestamp_to_seconds
+from gtunes.spot_select import select_spotify_track
 import argparse
 import csv
 import os
@@ -15,14 +17,6 @@ import json
 import urllib.request
 import re
 import questionary
-
-# ===============
-# General helpers
-# ===============
-
-# Accept timestamps in the format 1:30 where 1 is the minutes and 30 is the seconds
-def _timestamp_to_seconds(timestamp):
-    sum(x * int(t) for x, t in zip([60, 1], timestamp.split(":")))
 
 # ================
 # Tune subcommands
@@ -92,8 +86,8 @@ def _add_recording_to_tune_interactively(recording: db.Recording, tune: db.Tune)
 
     recording_tune = db.RecordingTune(recording=recording, tune=tune)
 
-    recording_tune.start_time_secs = _timestamp_to_seconds(input("Start time (MM:SS): "))
-    recording_tune.end_time_secs = _timestamp_to_seconds(input("End time (MM:SS): "))
+    recording_tune.start_time_secs = timestamp_to_seconds(input("Start time (MM:SS): "))
+    recording_tune.end_time_secs = timestamp_to_seconds(input("End time (MM:SS): "))
 
     print("Saving tune data")
     recording_tune.save()
@@ -158,80 +152,45 @@ def tune_abc(args):
 
     db.close_db()
 
-def _search_spotify_interactively(tune_ts_id: str = None, tune_name: str = None, existing_tune : db.Tune = None):
-    """
-    Should be called with the database open.
-    """
 
-    sp = audio.connect_to_spotify()
 
-    if existing_tune is not None:
-        if existing_tune.ts_id:
-            tune_ts_id = existing_tune.ts_id
-        elif existing_tune.name:
-            tune_name = existing_tune.name
-
-    if tune_ts_id is not None:
-        queue = scrape.scrape_recording_data_async(tune_id=tune_ts_id)
-    elif tune_name is not None:
-        queue = scrape.scrape_recording_data_async(tune_name=tune_name)
-    else:
-        print("Error: Supplied neither tune name not thesession id")
-        return []
-
-    saved_track_data = []
-    while True:
-        scrape_data = queue.get()
-        if scrape_data is None:
-            break
-
-        album_name = scrape_data["album_name"]
-        alb = audio.spot_search_albums(album_name, sp, artist_name=scrape_data['artist_name'])
-        if alb:
-            print(f"Album: {album_name}, track tunes: {scrape_data["track_tunes"]}")
-            track_data = audio.spot_play_nth_album_track(alb['id'], scrape_data['track_number'], sp)
-
-            if not track_data:
-                print(f"No track data for album {album_name}, skipping")
-                continue
-
-            print(f"Track name: {track_data['name']}")
-            if questionary.confirm("Save track to your library?", default=False).ask():
-                # TODO: see if we already have a recording matching this one
-                # where name and artist are the same
-                #if db.Recording.select().where(db.Recording.name == scrape_data["name"])
-
-                start_time_secs = _timestamp_to_seconds(questionary.text("Start time (MM:SS)", default="0:00").ask())
-                end_time_time_secs = _timestamp_to_seconds(questionary.text("End time (MM:SS)").ask())
-
-                db_rec = db.Recording.create(
-                    name=track_data["name"], 
-                    url=track_data["id"],
-                    album_name=album_name,
-                    source=db.Source.SPOTIFY)
-
-                if existing_tune:
-                    db.RecordingTune.create(
-                        tune=existing_tune, 
-                        recording=db_rec, 
-                        start_time_secs=start_time_secs, 
-                        end_time_time_secs=end_time_time_secs)
-
-    print("Done playing albums.")
-
-    return saved_track_data
 
 def tune_spot(args):
     db.open_db()
 
+    tune_name = None
     if args.name:
-        _search_spotify_interactively(tune_name=args.name)
+        tune_name = args.name
     else:
-        selected_tune, user_input = db.select_tune()
-        if selected_tune:
-            _search_spotify_interactively(existing_tune=selected_tune)
-        elif questionary.confirm(f"Search for {user_input}?").ask():
-             _search_spotify_interactively(tune_name=user_input)
+        tune, _ = db.select_tune(header="Select tune to find on Spotify")
+        if not tune:
+            print("Must specify a tune in order to search for it on Spotify.")
+        else:
+            tune_name = tune.name
+
+    
+    if tune_name:
+        output = select_spotify_track(tune_name) # Launch the interface to play and integrate spotify tracks
+
+        sp = audio.connect_to_spotify()
+        for i in range(len(output)):
+            track_data: audio.SpotTuneTrackData = output[i]
+            audio.spot_play_track(track_data.track_uri, sp)
+            if not questionary.confirm(f"Save {track_data.track_name} off of {track_data.album_name} by {track_data.artist_name}?").ask():
+                print("Skipping")
+                continue
+
+            recording = db.Recording.create(album=track_data.album_name,
+                                            artist=track_data.artist_name,
+                                            source=db.Source.SPOTIFY,
+                                            url=track_data.track_uri)
+
+            print(f"Track tunes: {track_data.track_tunes}")
+            rec_tune = db.RecordingTune()
+            rec_tune.tune = tune_name
+            rec_tune.recording = recording
+            rec_tune.start_time_secs = timestamp_to_seconds(questionary.text("Start time (MM:SS):").ask())
+            rec_tune.end_time_secs = timestamp_to_seconds(questionary.text("End time (MM:SS):").ask())
 
     db.close_db()
 
@@ -426,8 +385,8 @@ def rec_add(args):
             if not tune:
                 print("Must have existing tune to associate with recording.")
             else:
-                start_time_seconds = _timestamp_to_seconds(input("Start time (MM:SS): "))
-                end_time_time_seconds = _timestamp_to_seconds(input("End time (MM:SS): "))
+                start_time_seconds = timestamp_to_seconds(input("Start time (MM:SS): "))
+                end_time_time_seconds = timestamp_to_seconds(input("End time (MM:SS): "))
 
                 db.RecordingTune.create(tune=tune, recording=this_rec,
                                         start_time_secs=start_time_seconds, end_time_secs=end_time_time_seconds)
