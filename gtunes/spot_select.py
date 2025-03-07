@@ -1,18 +1,14 @@
+import logging
 from textual.app import App, ComposeResult
 from textual.widgets import Footer, Header, ListView, Static, ListItem, Checkbox
 from textual.containers import Horizontal
-from gtunes.audio import connect_to_spotify, spot_search_albums, spot_get_nth_album_track, \
-    spot_play_track, spot_play_nth_album_track, spot_pause_track, SpotTuneTrackData
-from gtunes.scrape import scrape_recording_data, ScrapeRecordingData
-from gtunes.util import timestamp_to_seconds
-import questionary
-from gtunes import db
-from time import sleep
-from threading import Thread, Event
-from queue import Queue
+import gtunes.audio as audio
+import gtunes.scrape as scrape
+import threading
+import queue
 
 class SpotTrack(ListItem):
-    def __init__(self, spot_data: SpotTuneTrackData):
+    def __init__(self, spot_data: audio.SpotTuneTrackData):
         super().__init__()
 
         self.spot_data = spot_data
@@ -59,12 +55,16 @@ class SpotApp(App):
         super().__init__()
 
         self._tune_name = tune_name
-        self._sp = connect_to_spotify()
+        self._sp = audio.connect_to_spotify()
         self._selected_item = None
         self._list_widget = None
-        self._stop_event = Event() # Signals thread termination
+        self._stop_event = threading.Event() # Signals thread termination
+        
+        self._done_with_startup = False
+        self._done_with_startup_event = threading.Event() # Set 
         self._output = output
 
+        self._scrape_data_queue = None
         self._scraping_thread = None
         self._queue_reader_thread = None
 
@@ -83,9 +83,9 @@ class SpotApp(App):
             if highlighted_child and isinstance(highlighted_child, SpotTrack):
                 should_play = highlighted_child.toggle_playback()
                 if should_play:
-                    spot_play_track(highlighted_child.spot_data.track_uri, self._sp, retries=0, log_fn=self.notify)
+                    audio.spot_play_track(highlighted_child.spot_data.track_uri, self._sp, retries=0, log_fn=self.notify)
                 else:
-                    spot_pause_track(highlighted_child.spot_data.track_uri, self._sp)
+                    audio.spot_pause_track(highlighted_child.spot_data.track_uri, self._sp)
 
     def action_save_tracks(self) -> list:
         for spot_list_item in self._list_widget.children:
@@ -103,22 +103,27 @@ class SpotApp(App):
         Reads from the queue of track data and use it to populate list of
         spotify tracks. This is intended to be run in its own thread.
         """
-        while not self._stop_event.is_set():
-            scrape_data: ScrapeRecordingData = queue.get()
+        while True:
+            if self._stop_event.is_set():
+                logging.debug("Stop event is set")
+                break
+            else:
+                logging.debug("Stop event not set")
+            scrape_data: scrape.ScrapeRecordingData = queue.get()
             if scrape_data is None:
                 break
 
-            spot_album_data = spot_search_albums(scrape_data.album_name, self._sp, artist_name=scrape_data.artist_name)
+            spot_album_data = audio.spot_search_albums(scrape_data.album_name, self._sp, artist_name=scrape_data.artist_name)
             if not spot_album_data:
                 continue
 
-            spot_data = SpotTuneTrackData(album_name=spot_album_data["name"], 
+            spot_data = audio.SpotTuneTrackData(album_name=spot_album_data["name"], 
                                           track_number=scrape_data.track_number, 
                                           track_tunes=scrape_data.track_tunes,
                                           album_uri=spot_album_data["uri"],
                                           artist_name=scrape_data.artist_name)
 
-            spot_track_data = spot_get_nth_album_track(spot_data.album_uri, spot_data.track_number, self._sp)
+            spot_track_data = audio.spot_get_nth_album_track(spot_data.album_uri, spot_data.track_number, self._sp)
 
             # Add track data
             spot_data.track_name = spot_track_data["name"]
@@ -139,21 +144,37 @@ class SpotApp(App):
 
         # Start background worker that fills the queue with albums data
         # corresponding to the tune in question.
-        queue = Queue()
-        self._scraping_thread = Thread(target=scrape_recording_data,
+        self._scrape_data_queue = queue.Queue()
+        logging.debug("Starting scraping thread")
+        self._scraping_thread = threading.Thread(target=scrape.scrape_recording_data,
                                         kwargs={
                                             "tune_name": self._tune_name,
-                                            "data_queue": queue,
+                                            "data_queue": self._scrape_data_queue,
                                             "stop_event": self._stop_event})
+        self._scraping_thread.start()
 
         # Start queue reader thread.
-        self._queue_reader_thread = Thread(target=self.read_tracks_from_queue, args=[queue]).start()
+        logging.debug("Starting queue reader thread")
+        self._queue_reader_thread = threading.Thread(target=self.read_tracks_from_queue, args=[self._scrape_data_queue])
+        self._queue_reader_thread.start()
 
-    async def on_shutdown(self) -> None:
+
+    async def on_unmount(self) -> None:
+        logging.debug("Setting stop event")
         self._stop_event.set()
-        self._scraping_thread.join()
-        self._queue_reader_thread.join()
+        if self._scraping_thread.is_alive():
+            logging.debug("Joining scraping thread")
+            self._scraping_thread.join(2)
+        else:
+            logging.debug("Scraping thread is not live")
 
+        #logging.debug("Trying to send None to queue with timeout")
+        #self._scrape_data_queue.put(None, timeout = 0.5)
+        if self._queue_reader_thread.is_alive():
+            logging.debug("Joining queue reader")
+            self._queue_reader_thread.join(2)
+        else:
+            logging.debug("Queue thread is not live")
 
 def select_spotify_track(tune_name: str) -> list:
     output = []

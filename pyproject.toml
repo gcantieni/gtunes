@@ -5,10 +5,13 @@ description = "Track and learn traditional Irish tunes"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "asyncio>=3.4.3", # testing
     "beautifulsoup4>=4.13.3",
     "dotenv>=0.9.9",
     "levenshtein>=0.27.1",
     "peewee>=3.17.9",
+    "pytest>=8.3.5", # testing
+    "pytest-asyncio>=0.25.3", # testing
     "questionary>=2.1.0",
     "requests>=2.32.3",
     "spotipy>=2.25.1",

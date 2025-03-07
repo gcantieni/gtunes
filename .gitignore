@@ -11,3 +11,4 @@ __pycache__/
 .vscode
 .genv
 gtunes.egg-info/*
+debug.log

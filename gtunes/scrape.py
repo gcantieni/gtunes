@@ -5,6 +5,7 @@ import queue
 import threading
 from dataclasses import dataclass
 from bs4 import BeautifulSoup
+import logging
 
 debug=False
 TUNE_DELIMITER = " / "
@@ -130,6 +131,8 @@ def scrape_recording_data(tune_name: str = None, tune_id: str = None, limit: int
     Returns:
         Either a list of ScrapeRecordingData, or None if a queue is being used.
     """
+    logging.debug(f"tune_name={tune_name}, limit={limit}, data_queue={data_queue}, stop_event={stop_event}")
+
     if not tune_name and not tune_id:
         print("Must specify either tune name or tune id")
     
@@ -144,11 +147,20 @@ def scrape_recording_data(tune_name: str = None, tune_id: str = None, limit: int
     # Each recording list
     recording_list_items = soup.find_all("li", class_="manifest-item")
 
+    logging.debug(f"len(recording_list_items)={len(recording_list_items)}")
+
     max_items = len(recording_list_items) if not limit else min(len(recording_list_items), limit)
-    output = [] if not data_queue else None
+    output = []
+
+    logging.debug(f"Limiting to max_items={max_items}")
+
     for i in range(max_items):
-        if stop_event and stop_event.is_set():
-            break
+        if stop_event is not None:
+            if stop_event.is_set():
+                logging.debug("Stop event detected")
+                break
+            else:
+                logging.debug("not stopped")
 
         li = recording_list_items[i]
 
@@ -168,7 +180,6 @@ def scrape_recording_data(tune_name: str = None, tune_id: str = None, limit: int
         # Unfortunately, in order to find the track number we need to scrape the
         # album page itself. this could be solved by using irishtunes.info which
         # has the album data and track number on the same page.
-        #track_number, tune_number = find_track_number(album_id, tune_id)
         track_data = find_track_number(album_id, tune_id)
 
         entry = ScrapeRecordingData(album_name=name, 
@@ -178,6 +189,7 @@ def scrape_recording_data(tune_name: str = None, tune_id: str = None, limit: int
                                     artist_name=artist_name)
 
         if data_queue:
+            logging.debug("Putting entry to queue")
             data_queue.put(entry)
         else:
             output.append(entry)
@@ -187,11 +199,6 @@ def scrape_recording_data(tune_name: str = None, tune_id: str = None, limit: int
     return output
 
 def main():
-    # abc_settings = get_abc_by_name("the lark in the morning")
-    # for setting in abc_settings:
-    #     print(setting + "\n")
-    #scrape_recordings(3210)
-    # find_track_number(7614, 3210)
     find_track_number(3613, 62)
 
 if __name__ == '__main__':
