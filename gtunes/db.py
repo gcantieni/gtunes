@@ -1,7 +1,8 @@
 from peewee import SqliteDatabase, Model, CharField, IntegerField, TextField, ForeignKeyField, DateTimeField
 import os
 from dotenv import load_dotenv
-from gtunes.fzf_interact import fzf_select
+import questionary
+from gtunes.fzf_interact import fuzzy_select
 from enum import Enum
 import datetime
 
@@ -130,7 +131,7 @@ class SetTune(BaseClass):
     )
     ordering = ['position']  # Default ordering by position field
 
-def select_tune(header=None):
+def select_tune(message: str) -> Tune | None:
     """
     Returns:
         selected_tune (db.Tune)
@@ -138,19 +139,24 @@ def select_tune(header=None):
     """
     query = Tune.select()
     tune_list = [t.name for t in query]
-    tune_name, user_input = fzf_select(tune_list, header=header)
+
+    tune_name = questionary.autocomplete(
+        message,
+        choices=tune_list,
+    ).ask()
 
     selected_tune = None
     if tune_name:
         selected_tune = Tune.select().where(Tune.name == tune_name).get_or_none()
 
-    return selected_tune, user_input
+    return selected_tune
+
 
 def select_recording(header=None):
     query = Recording.select()
 
     recording_list = [r.name for r in query]
-    rec_name, user_input = fzf_select(recording_list, header=header)
+    rec_name, user_input = fuzzy_select(recording_list, header=header)
 
     selected_rec = None
     if rec_name:

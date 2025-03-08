@@ -99,7 +99,7 @@ def tune_edit(args):
 
     db.open_db()
 
-    tune, _ = db.select_tune(header="Select tune to edit")
+    tune = db.select_tune(message="Select tune to edit")
     if not tune:
         print("Tune not found.")
         ret = 1
@@ -139,7 +139,7 @@ def tune_list(args):
 
 def tune_abc(args):
     db.open_db()
-    tune, _ = db.select_tune("Choose a tune to get the abc of.")
+    tune= db.select_tune("Choose a tune to get the abc of.")
 
     if not tune.abc:
         _add_first_abc_setting_to_tune(tune)
@@ -162,7 +162,7 @@ def tune_spot(args):
     if args.name:
         tune_name = args.name
     else:
-        tune, _ = db.select_tune(header="Select tune to find on Spotify")
+        tune = db.select_tune(message="Select tune to find on Spotify")
         if not tune:
             print("Must specify a tune in order to search for it on Spotify.")
         else:
@@ -239,7 +239,7 @@ def _remove_title_from_abc(abc_string):
 def tune_flash(args):
     db.open_db()
 
-    tune, _ = db.select_tune("Choose tune to put on flashcard")
+    tune = db.select_tune("Choose tune to put on flashcard")
 
     if not tune:
         print("No tune selected.")
@@ -381,7 +381,7 @@ def rec_add(args):
         y_or_n = input("Add existing tune to this recording? ")
 
         if y_or_n == "y":
-            tune, _ = db.select_tune()
+            tune = db.select_tune()
             if not tune:
                 print("Must have existing tune to associate with recording.")
             else:

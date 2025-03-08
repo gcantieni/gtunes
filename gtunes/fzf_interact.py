@@ -1,7 +1,7 @@
 import subprocess
 
 
-def fzf_select(select_from, header=None):
+def fuzzy_select(select_from, header=None):
     """ 
     Use fzf to select from the list or dict passed.
 
