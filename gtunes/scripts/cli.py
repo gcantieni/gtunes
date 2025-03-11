@@ -5,9 +5,9 @@ from gtunes import parse
 from gtunes import scrape
 from gtunes import db
 from gtunes import audio
-from dotenv import load_dotenv
-from gtunes.util import timestamp_to_seconds
-from gtunes.spot_select import select_spotify_track
+from gtunes import util
+from gtunes import spot_select
+import dotenv
 import argparse
 import csv
 import os
@@ -48,19 +48,22 @@ def _edit_and_save_tune_interactively(tune: db.Tune):
 
     responses = questionary.form(
         name = questionary.text("Name", default=_str_default(tune.name)),
-        status = questionary.select("Status", choices=status_choices),
-        tune_type = questionary.select("Type", choices=tune_type_choices, default=_str_default(tune.type)),
+        status = questionary.select("Status", choices=status_choices, 
+                                    default=_str_default(db.Status(tune.status).name if tune.status else None)),
+        tune_type = questionary.select("Type", choices=tune_type_choices, 
+                                       default=_str_default(tune.type.upper() if tune.type else None)),
         key = questionary.text("Key", default=_str_default(tune.key)),
         comments = questionary.text("Comment", default=_str_default(tune.comments)),
     ).ask()
 
     tune.name = _get_val_from_dict("name", responses)
-    tune.status = db.Status[_get_val_from_dict("status", responses)]
+    tune.status = db.Status[_get_val_from_dict("status", responses)].value
     tune.type = _get_val_from_dict("tune_type", responses)
     tune.key = _get_val_from_dict("key", responses)
     tune.comments = _get_val_from_dict("comments", responses)
 
-    print(tune)
+    print(f"Saving tune: {tune}")
+    tune.save()
 
 def _add_recording_to_tune_interactively(recording: db.Recording, tune: db.Tune):
     """
@@ -86,8 +89,8 @@ def _add_recording_to_tune_interactively(recording: db.Recording, tune: db.Tune)
 
     recording_tune = db.RecordingTune(recording=recording, tune=tune)
 
-    recording_tune.start_time_secs = timestamp_to_seconds(input("Start time (MM:SS): "))
-    recording_tune.end_time_secs = timestamp_to_seconds(input("End time (MM:SS): "))
+    recording_tune.start_time_secs = util.timestamp_to_seconds(input("Start time (MM:SS): "))
+    recording_tune.end_time_secs = util.timestamp_to_seconds(input("End time (MM:SS): "))
 
     print("Saving tune data")
     recording_tune.save()
@@ -99,7 +102,11 @@ def tune_edit(args):
 
     db.open_db()
 
-    tune = db.select_tune(message="Select tune to edit")
+    tune = None
+    if args.name:
+        tune = db.Tune.select().where(db.Tune.name == args.name).get_or_none()
+    else:
+        tune = db.select_tune(message="Select tune to edit")
     if not tune:
         print("Tune not found.")
         ret = 1
@@ -170,7 +177,7 @@ def tune_spot(args):
 
     
     if tune_name:
-        output = select_spotify_track(tune_name) # Launch the interface to play and integrate spotify tracks
+        output = spot_select.select_spotify_track(tune_name) # Launch the interface to play and integrate spotify tracks
 
         sp = audio.connect_to_spotify()
         for i in range(len(output)):
@@ -182,15 +189,15 @@ def tune_spot(args):
 
             recording = db.Recording.create(album=track_data.album_name,
                                             artist=track_data.artist_name,
-                                            source=db.Source.SPOTIFY,
+                                            source=db.RecordingSource.SPOTIFY,
                                             url=track_data.track_uri)
 
             print(f"Track tunes: {track_data.track_tunes}")
             rec_tune = db.RecordingTune()
             rec_tune.tune = tune_name
             rec_tune.recording = recording
-            rec_tune.start_time_secs = timestamp_to_seconds(questionary.text("Start time (MM:SS):").ask())
-            rec_tune.end_time_secs = timestamp_to_seconds(questionary.text("End time (MM:SS):").ask())
+            rec_tune.start_time_secs = util.timestamp_to_seconds(questionary.text("Start time (MM:SS):").ask())
+            rec_tune.end_time_secs = util.timestamp_to_seconds(questionary.text("End time (MM:SS):").ask())
 
     db.close_db()
 
@@ -258,7 +265,7 @@ def tune_flash(args):
     file_name = tune_name_for_file + "001.svg" # For some reason abcm2svg appends "001" to the filename
     file_path = os.path.abspath(file_name)
 
-    load_dotenv()
+    dotenv.load_dotenv()
     deck_name = os.getenv("GTUNES_ANKI_DECK", "GTunes")
     _ac_invoke('createDeck', deck=deck_name) # This won't do anything if deck was already created earlier
 
@@ -324,7 +331,7 @@ def set_add(args):
     pass
 
 # =============
-# Flash command
+# Rec command
 # =============
 
 def rec_add(args):
@@ -337,7 +344,7 @@ def rec_add(args):
         args.url: Either a filepath, a Spotify URL, or a Youtube URL
     """
     ret = 0
-    load_dotenv()
+    dotenv.load_dotenv()
     data_dir = os.getenv("GTUNES_DATA_DIR", os.path.join("gtunes", "data"))
     # TODO: implement local storage
     recs_dir = os.path.join(data_dir, "recs")
@@ -359,7 +366,7 @@ def rec_add(args):
             print("Already have this recording in the database:")
             print(existing_rec)
         else:
-            this_rec = db.Recording(name=name, url=args.url, source=db.Source.SPOTIFY, album=album, artist=artist)
+            this_rec = db.Recording(name=name, url=args.url, source=db.RecordingSource.SPOTIFY, album=album, artist=artist)
 
     # https://www.youtube.com/watch?v=zHqC__xzSkI
     elif re.match(r"^https://www.youtube.com.*", args.url):
@@ -385,8 +392,8 @@ def rec_add(args):
             if not tune:
                 print("Must have existing tune to associate with recording.")
             else:
-                start_time_seconds = timestamp_to_seconds(input("Start time (MM:SS): "))
-                end_time_time_seconds = timestamp_to_seconds(input("End time (MM:SS): "))
+                start_time_seconds = util.timestamp_to_seconds(input("Start time (MM:SS): "))
+                end_time_time_seconds = util.timestamp_to_seconds(input("End time (MM:SS): "))
 
                 db.RecordingTune.create(tune=tune, recording=this_rec,
                                         start_time_secs=start_time_seconds, end_time_secs=end_time_time_seconds)
@@ -400,14 +407,34 @@ def rec_add(args):
 
 def rec_ls(args):
     db.open_db()
-    sel = db.Recording.select()
+    query = db.Recording.select()
     print("Listing recordings.")
 
-    for recording in sel:
+    for recording in query:
         print(recording)
     
     db.close_db()
 
+def rec_edit(args):
+    db.open_db()
+
+    selected_recording = db.select_recording()
+    if not selected_recording:
+        print("No recording selected")
+    else:
+        responses = questionary.form(
+            name = questionary.text("Name", default=_str_default(selected_recording.name)),
+            source = questionary.select("Source", choices=[rt for rt in db.RecordingSource], default=_str_default(selected_recording.source)),
+            url = questionary.text("Url", default=_str_default(selected_recording.url)),
+        ).ask()
+
+        selected_recording.name = _get_val_from_dict("name", responses)
+        selected_recording.source = _get_val_from_dict("source", responses)
+        selected_recording.url = _get_val_from_dict("url", responses)
+
+    db.close_db()
+
+    return 0
 
 def main():
     parser = argparse.ArgumentParser(description="Add and manipulate traditional tunes.")
@@ -434,6 +461,7 @@ def main():
     parser_tune_list.add_argument("-s", dest="status", help="Status of tune. How well the tune is known, int from 1-5.")
 
     parser_tune_edit = subparser_tune.add_parser("edit", help="Edit a tune")
+    parser_tune_edit.add_argument("--name", help="Name of the tune")
     parser_tune_edit.set_defaults(func=tune_edit)
 
     parser_spot = subparser_tune.add_parser("spot", help="Scrape albums of thesession.org by name and search for them on spotify.")
@@ -458,6 +486,9 @@ def main():
 
     parser_rec_ls = rec_subparser.add_parser("ls", help="List recordings")
     parser_rec_ls.set_defaults(func=rec_ls)
+
+    parser_rec_edit = rec_subparser.add_parser("edit", help="Edit recording information.")
+    parser_rec_edit.set_defaults(func=rec_edit)
 
     # Set subparser
     parser_set = subparsers.add_parser("set", help="Manage sets of tunes")

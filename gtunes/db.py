@@ -2,6 +2,7 @@ from peewee import SqliteDatabase, Model, CharField, IntegerField, TextField, Fo
 import os
 from dotenv import load_dotenv
 import questionary
+from gtunes import util
 from gtunes.fzf_interact import fuzzy_select
 from enum import Enum
 import datetime
@@ -10,6 +11,9 @@ load_dotenv()
 data_dir = os.getenv("GTUNES_DB", os.path.join("gtunes", "data"))
 database_path = os.path.join(data_dir, "gtunes.db")
 db = SqliteDatabase(database_path, pragmas={'foreign_keys': 1})
+
+glog = util.get_logger()
+glog.debug("Using gtunes database %s", database_path)
 
 def open_db():
     global db
@@ -89,7 +93,7 @@ class Tune(BaseClass):
 
         return ret
 
-class Source(Enum):
+class RecordingSource(Enum):
     SPOTIFY = "spotify"
     YOUTUBE = "youtube"
     LOCAL = "local"
@@ -97,7 +101,7 @@ class Source(Enum):
 class Recording(BaseClass):
     name = CharField(null=True)
     url = TextField()
-    source = CharField(choices=[(rec_source.value, rec_source.name) for rec_source in Source])
+    source = CharField(choices=[(rec_source.value, rec_source.name) for rec_source in RecordingSource])
     artist = CharField(null=True)
     album = CharField(null=True)
    
@@ -106,9 +110,11 @@ class Recording(BaseClass):
         Want something like:
         From Galway to Dublin / The Harp and Shamrock by Nathan Gourley, Laura Feddersen
         """
-        out = self.name
+        out = self.name if self.name else "Untitled"
         if self.artist:
             out += f" by {self.artist}"
+        if self.source:
+            out += f" ({self.source})"
         return out
 
 # jump table: find all the recordings of a tune you have, and where they start
@@ -140,9 +146,15 @@ def select_tune(message: str) -> Tune | None:
     query = Tune.select()
     tune_list = [t.name for t in query]
 
+    custom_style = questionary.Style.from_dict({
+        'completion-menu.completion': 'bg:#696868',
+        'selected': '#8a8888',
+    })
+
     tune_name = questionary.autocomplete(
         message,
         choices=tune_list,
+        style=custom_style,
     ).ask()
 
     selected_tune = None
@@ -151,18 +163,20 @@ def select_tune(message: str) -> Tune | None:
 
     return selected_tune
 
-
-def select_recording(header=None):
+def select_recording(message: str) -> Recording | None:
     query = Recording.select()
-
     recording_list = [r.name for r in query]
-    rec_name, user_input = fuzzy_select(recording_list, header=header)
 
-    selected_rec = None
-    if rec_name:
-        selected_rec = Recording.select().where(Recording.name == rec_name).get()
-    
-    return selected_rec, user_input
+    recording_name = questionary.autocomplete(
+        message,
+        choices=recording_list,
+    ).ask()
+
+    selected_recording = None
+    if recording_name:
+        selected_recording = Recording.select().where(Recording.name == recording_name).get_or_none()
+
+    return selected_recording
 
 def get_tune_by_name(tune_name):
     return Tune.select().where(Tune.name == tune_name).get()
