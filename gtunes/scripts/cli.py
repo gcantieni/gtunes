@@ -159,13 +159,11 @@ def tune_abc(args):
 
     db.close_db()
 
-
-
-
 def tune_spot(args):
     db.open_db()
 
     tune_name = None
+    tune = None
     if args.name:
         tune_name = args.name
     else:
@@ -187,17 +185,26 @@ def tune_spot(args):
                 print("Skipping")
                 continue
 
-            recording = db.Recording.create(album=track_data.album_name,
+            recording = db.Recording.create(name=track_data.track_name,
+                                            album=track_data.album_name,
                                             artist=track_data.artist_name,
-                                            source=db.RecordingSource.SPOTIFY,
+                                            source=db.RecordingSource.SPOTIFY.value,
                                             url=track_data.track_uri)
 
-            print(f"Track tunes: {track_data.track_tunes}")
-            rec_tune = db.RecordingTune()
-            rec_tune.tune = tune_name
-            rec_tune.recording = recording
-            rec_tune.start_time_secs = util.timestamp_to_seconds(questionary.text("Start time (MM:SS):").ask())
-            rec_tune.end_time_secs = util.timestamp_to_seconds(questionary.text("End time (MM:SS):").ask())
+            # TODO: associate with a tune matching name or prompt to make new tune
+            if tune:
+                print(f"Associating with tune {tune}")
+                print("Selecting start and end time:")
+                print(f"Track tunes: {track_data.track_tunes}")
+                rec_tune = db.RecordingTune()
+                rec_tune.tune = tune_name
+                rec_tune.recording = recording
+                
+                rec_tune.start_time_secs = util.timestamp_to_seconds(questionary.text("Start time (MM:SS):").ask())
+                rec_tune.end_time_secs = util.timestamp_to_seconds(questionary.text("End time (MM:SS):").ask())
+                
+                print("Saving tune-recording association")
+                rec_tune.save()
 
     db.close_db()
 
