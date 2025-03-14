@@ -144,7 +144,7 @@ class SetTune(BaseClass):
 def select_tune(message: str) -> Tune | None:
     """
     Returns:
-        selected_tune (db.Tune)
+        selected_tune (Tune)
         user_input (str)
     """
     query = Tune.select()
