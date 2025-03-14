@@ -257,6 +257,7 @@ def tune_flash(args):
 
     if not tune:
         print("No tune selected.")
+        db.close_db()
         return 1
 
     if not tune.abc:
@@ -267,6 +268,7 @@ def tune_flash(args):
     tune_name_for_file = tune.name.replace(" ", "-")
     
     # Remove the name for the abc so that the flashcard doesn't give away the tune name.
+    # TODO: remove the tmp file
     _convert_abc_to_svg(_remove_title_from_abc(tune.abc), tune_name_for_file)
 
     file_name = tune_name_for_file + "001.svg" # For some reason abcm2svg appends "001" to the filename
@@ -293,8 +295,9 @@ def tune_flash(args):
     })
 
     if not tune.status or tune.status <= 2:
-        should_bump = input("Bump tune status to 3 now that it's in the flashcard deck? (y/n) ")
-        if should_bump == "y":
+        should_bump = questionary.confirm(
+            f"Bump tune status to {db.Status(3).name} now that it's in the flashcard deck?")
+        if should_bump:
             print("Tune acquired!")
             tune.status = 3
 
@@ -305,9 +308,14 @@ def tune_flash(args):
 # =============
 
 def parse_(args):
+    db.open_db()
+
     parser = parse.TuneListParser(args.infile)
     parser.parse()
     parser.print_tunes()
+    
+    db.close_db()
+
 
 # ==============
 # Export command

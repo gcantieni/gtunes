@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 
-from gtunes.db import Tune, Recording, open_db, close_db, Status
-from dotenv import load_dotenv
-from peewee import IntegrityError
+import pathlib
 import os
 import re
+
+import dotenv
+import peewee
+from gtunes import db
+from gtunes import util
 
 class TuneListParser:
     """Can consume a tune list and output a list of Tunes.
@@ -15,13 +18,12 @@ class TuneListParser:
         self.state = StartLineParser(self.tunes)
 
     def parse(self):
-        open_db()
+
         with open(self.file_location, "r") as file:
             for line in file:
                 #new_state = self.state.parse_line(line)
                 self.state = self.state.parse_line(line)
 
-        close_db()
         return self.tunes
     
     def print_tunes(self):
@@ -31,8 +33,9 @@ class TuneListParser:
 class LineParser:
     def __init__(self, tunes):
         self.tunes = tunes
-        load_dotenv()
-        self.recordings_dir = os.getenv("RECORDINGS_DIR", "~/gtunes/recs")
+        dotenv.load_dotenv()
+        self.recordings_dir = pathlib.Path(util.get_data_dir()) / "audio" / "standalone"
+        self.recordings_dir.mkdir(parents=True, exist_ok=True)
 
     # Abstract method
     def parse_line(self, line):
@@ -42,10 +45,10 @@ class LineParser:
         self.tunes[tune.name] = tune
         try:
             tune.save()
-        except IntegrityError as e:
+        except peewee.IntegrityError as e:
             print(f"Duplicate name found in tune list: {tune.name}")
 
-    def parse_tune(self, line) -> Tune:
+    def parse_tune(self, line) -> db.Tune:
         line_parts = line.split("-")
 
         if len(line_parts) < 2:
@@ -66,10 +69,10 @@ class LineParser:
             stripped_name = m4a_match.group(1)
             m4a_path = os.path.join(self.recordings_dir, stripped_name)
             
-            this_tune = Tune(name=stripped_name)
-            Recording.create(name=stripped_name, url=m4a_path, source="local", tune=this_tune)
+            this_tune = db.Tune(name=stripped_name)
+            db.Recording.create(name=stripped_name, url=m4a_path, source="local", tune=this_tune)
         else:
-            this_tune = Tune(name=name)
+            this_tune = db.Tune(name=name)
     
         if len(line_parts) > 1:
             metadata = line_parts[1]
@@ -111,7 +114,7 @@ class LearnLineParser(LineParser):
         
         tune = self.parse_tune(line)
         if tune:
-            tune.status = Status.TODO.value
+            tune.status = db.Status.TODO.value
             self.add_tune(tune)
 
         return self
@@ -123,7 +126,7 @@ class PracticeLineParser(LineParser):
 
         tune = self.parse_tune(line)
         if tune:
-            tune.status = Status.CAN_PLAY.value
+            tune.status = db.Status.CAN_PLAY.value
             self.add_tune(tune)
 
         return self
@@ -157,7 +160,7 @@ class LearnedTuneParser(LineParser):
         if tune:
             tune.type = self.tune_type
             tune.key = self.key
-            tune.status = Status.CAN_START.value
+            tune.status = db.Status.CAN_START.value
             self.add_tune(tune)
 
         return self

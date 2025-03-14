@@ -8,7 +8,7 @@ import time
 from Levenshtein import distance
 import re
 from dataclasses import dataclass
-from gtunes.db import Tune
+from gtunes import db
 
 @dataclass
 class SpotTuneTrackData():
@@ -22,7 +22,7 @@ class SpotTuneTrackData():
     track_tunes: str = ""
     track_name: str = ""
     artist_name: str = ""
-    tune: Tune = None
+    tune: db.Tune = None
 
 
 def print_debug(debug_str):

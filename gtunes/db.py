@@ -8,7 +8,7 @@ from enum import Enum
 import datetime
 
 load_dotenv()
-data_dir = os.getenv("GTUNES_DB", os.path.join("gtunes", "data"))
+data_dir = util.get_data_dir()
 database_path = os.path.join(data_dir, "gtunes.db")
 db = SqliteDatabase(database_path, pragmas={'foreign_keys': 1})
 
@@ -108,13 +108,17 @@ class Recording(BaseClass):
     def __str__(self):
         """
         Want something like:
-        From Galway to Dublin / The Harp and Shamrock by Nathan Gourley, Laura Feddersen
+        - From Galway to Dublin / The Harp and Shamrock by Nathan Gourley, Laura Feddersen
+          https://open.spotify.com/track/7z59yveZoRn0VfcbgO8tO2?si=5bd6cefccb1d433e
         """
-        out = self.name if self.name else "Untitled"
+        out = " - "
+        out += self.name if self.name else "Untitled"
         if self.artist:
             out += f" by {self.artist}"
         if self.source:
             out += f" ({self.source})"
+        
+        out += f"\n\t{self.url}"
         return out
 
 # jump table: find all the recordings of a tune you have, and where they start
