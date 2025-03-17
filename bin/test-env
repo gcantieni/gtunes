@@ -1,0 +1,10 @@
+#/bin/env bash
+
+if [ "$GTUNES_TEST" = "true" ]; then
+	echo "Unsettings GTUNES_TEST"
+	export GTUNES_TEST=
+	unset GTUNEST_TEST
+else
+	echo "Setting GTUNES_TEST to 'true'"
+	export GTUNES_TEST=true
+fi

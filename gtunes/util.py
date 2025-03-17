@@ -4,11 +4,19 @@
 
 import logging
 import os
+import pathlib
 
 import dotenv
 
 dotenv.load_dotenv()
-log_level = os.getenv("GTUNES_LOG_LEVEL", "INFO").upper()
+
+gtunes_test = os.getenv("GTUNES_TEST") == "true"
+
+if gtunes_test:
+    log_level = "DEBUG"
+else:
+    log_level = os.getenv("GTUNES_LOG_LEVEL", "INFO").upper()
+
 gtunes_logger = logging.getLogger('gtunes')
 gtunes_logger.setLevel(log_level)
 handler = logging.StreamHandler()
@@ -19,7 +27,11 @@ gtunes_logger.addHandler(handler)
 def get_logger() -> logging.Logger:
     return gtunes_logger
 
-data_dir = os.getenv("GTUNES_DIR", os.path.join("gtunes", "data"))
+default_data_dir = str(pathlib.Path.cwd() / "gtunes" / "data")
+if gtunes_test:
+    data_dir = default_data_dir
+else:
+    data_dir = os.getenv("GTUNES_DIR", default_data_dir)
 
 def get_data_dir() -> str:
     return data_dir
