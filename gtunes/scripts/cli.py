@@ -97,36 +97,64 @@ def _add_recording_to_tune_interactively(recording: db.Recording, tune: db.Tune)
 
     return True
 
+def tune_add(args):
+    db.open_db()
+
+    this_tune = db.Tune()
+
+    if args.name or args.ts_id:
+        if args.name:
+            this_tune.name = args.name
+        if args.type:
+            this_tune.type = db.TuneType(args.type).value
+        if args.status:
+            this_tune.status = db.Status(args.status).value
+        if args.ts_id:
+            this_tune.ts_id = args.td_id
+        if args.comments:
+            this_tune.comments = args.comments
+        if args.from_:
+            this_tune.from_ = args.from_
+    else:
+        _edit_and_save_tune_interactively(this_tune)
+
+    db.close_db()
+
 def tune_edit(args):
     ret = 0
 
     db.open_db()
 
-    tune = None
+    this_tune = None
     if args.name:
-        tune = db.Tune.select().where(db.Tune.name == args.name).get_or_none()
+        this_tune = db.Tune.select().where(db.Tune.name == args.name).get_or_none()
     else:
-        tune = db.select_tune(message="Select tune to edit")
-    if not tune:
+        this_tune = db.select_tune(message="Select tune to edit")
+
+    if not this_tune:
         print("Tune not found.")
-        ret = 1
+        db.close_db()
+        return 1
+    
+    if args.type or args.status or args.ts_id or args.comments or args.from_ or args.new_name:
+        if args.new_name:
+            this_tune.name = args.new_name
+        if args.type:
+            this_tune.type = db.TuneType(args.type).value
+        if args.status:
+            this_tune.status = db.Status(args.status).value
+        if args.ts_id:
+            this_tune.ts_id = args.td_id
+        if args.comments:
+            this_tune.comments = args.comments
+        if args.from_:
+            this_tune.from_ = args.from_
     else:
-        _edit_and_save_tune_interactively(tune)
+        _edit_and_save_tune_interactively(this_tune)
 
     db.close_db()
 
-    return ret
-
-def tune_add(args):
-    db.open_db()
-
-    this_tune = db.Tune()
-    # Defaults
-    this_tune.status = 1
-
-    _edit_and_save_tune_interactively(this_tune)
-
-    db.close_db()
+    return 0
 
 def tune_list(args):
     db.open_db()
@@ -163,7 +191,7 @@ def tune_spot(args):
     db.open_db()
 
     tune_name = None
-    tune = None
+    tune: db.Tune | None = None
     if args.name:
         tune_name = args.name
     else:
@@ -197,7 +225,7 @@ def tune_spot(args):
                 print("Selecting start and end time:")
                 print(f"Track tunes: {track_data.track_tunes}")
                 rec_tune = db.RecordingTune()
-                rec_tune.tune = tune_name
+                rec_tune.tune = tune
                 rec_tune.recording = recording
                 
                 rec_tune.start_time_secs = util.timestamp_to_seconds(questionary.text("Start time (MM:SS):").ask())
@@ -457,27 +485,32 @@ def main():
     subparsers = parser.add_subparsers(dest="command", help="Subcommands")
 
     # Create the parent parser with common arguments
-    parent_parser = argparse.ArgumentParser(add_help=False)  # Don't add help to avoid duplication
-    parent_parser.add_argument("-l", type=str, default="tunes", dest="list_location", help="List location")
-
+    parent_parser_add_edit = argparse.ArgumentParser(add_help=False)  # Don't add help to avoid duplication
+    parent_parser_add_edit.add_argument("--name", help="Name of the tune")
+    parent_parser_add_edit.add_argument("--status", help=f"How well you know the tune", choices=[s.name for s in db.Status])
+    parent_parser_add_edit.add_argument("--type", help="Type of tune", choices=[t.name for t in db.TuneType])
+    parent_parser_add_edit.add_argument("--key", help="Key of the tune")
+    parent_parser_add_edit.add_argument("--ts-id", help="Id of tune on TheSession")
+    parent_parser_add_edit.add_argument("--comments", help="Any comments about the tune")
+    parent_parser_add_edit.add_argument("--from", dest="from_", help="The place of person the tune is from")
     # Create parsers for subcommands
 
     # Tune subparser
     parser_tune = subparsers.add_parser("tune", help="Manage tunes")
     subparser_tune = parser_tune.add_subparsers(required=True)
 
-    parser_tune_add = subparser_tune.add_parser("add", help="Add a tune")
+    parser_tune_add = subparser_tune.add_parser("add", parents=[parent_parser_add_edit], help="Add a tune. Do so interactively if no arguments supplied.")
     parser_tune_add.set_defaults(func=tune_add)
 
-    parser_tune_list = subparser_tune.add_parser("ls", parents=[parent_parser], help="List tunes")
+    parser_tune_edit = subparser_tune.add_parser("edit", parents=[parent_parser_add_edit], help="Edit a tune")
+    parser_tune_edit.add_argument("--new-name", help="Name to set the tune to.")
+    parser_tune_edit.set_defaults(func=tune_edit)
+
+    parser_tune_list = subparser_tune.add_parser("ls", help="List tunes")
     parser_tune_list.set_defaults(func=tune_list)
     parser_tune_list.add_argument("-n", dest="name", help="Name of tune")
     parser_tune_list.add_argument("-t", dest="type", help="Type of tune (jig, reel, etc.)")
     parser_tune_list.add_argument("-s", dest="status", help="Status of tune. How well the tune is known, int from 1-5.")
-
-    parser_tune_edit = subparser_tune.add_parser("edit", help="Edit a tune")
-    parser_tune_edit.add_argument("--name", help="Name of the tune")
-    parser_tune_edit.set_defaults(func=tune_edit)
 
     parser_spot = subparser_tune.add_parser("spot", help="Scrape albums of thesession.org by name and search for them on spotify.")
     parser_spot.set_defaults(func=tune_spot)
@@ -512,7 +545,7 @@ def main():
     parser_set_add.set_defaults(func=set_add)
 
     # Parse subparser
-    parser_parse = subparsers.add_parser("parse", parents=[parent_parser], help="Add list")
+    parser_parse = subparsers.add_parser("parse", parents=[parent_parser_add_edit], help="Add list")
     parser_parse.set_defaults(func=parse_)
     parser_parse.add_argument("infile", help="The path to the tune list to parse")
     parser_parse.add_argument("-o", dest="outfile", help="The name of the output file (db will be appended)")
