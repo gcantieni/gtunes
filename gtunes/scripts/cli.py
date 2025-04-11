@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # The frontend: command line interface for the app.
 
+import enum
+import typing
+import peewee
 from gtunes import parse
 from gtunes import scrape
 from gtunes import db
@@ -36,34 +39,60 @@ def _get_val_from_dict(value_name, the_dict):
     val = the_dict[value_name]
     return val if val else None
 
+EnumClass = typing.TypeVar('E', bound=enum.Enum)
+
+def _select_from_enum_values(prompt: str, enum_class: typing.Type[EnumClass], default_val: int, return_as_value : bool = False) -> int | None:
+    enum_names = [enum_val.name for enum_val in enum_class]
+    enum_names.insert(0, "")
+
+    # Convert default_val to a string of type specified by enum class 
+    default_str = enum_class(default_val).name if default_val else ""
+
+    selected_name = questionary.select(prompt, choices=enum_names, default=default_str).ask()
+
+    if not return_as_value:
+        return selected_name
+
+    if selected_name is not None:
+        selected_value = enum_class[selected_name].value
+    else:
+        selected_value = None
+
+    return selected_value
+
 def _edit_and_save_tune_interactively(tune: db.Tune):
     """
     Edits the input tune in-place, defaulting to the values already present in the tune.
     """
-    tune_type_choices = [t.name for t in db.TuneType]
-    tune_type_choices.append("")
 
-    status_choices = [s.name for s in db.Status]
-    status_choices.append("")
+    tune.name = questionary.text("Name", default=_str_default(tune.name)).ask()
 
-    responses = questionary.form(
-        name = questionary.text("Name", default=_str_default(tune.name)),
-        status = questionary.select("Status", choices=status_choices, 
-                                    default=_str_default(db.Status(tune.status).name if tune.status else None)),
-        tune_type = questionary.select("Type", choices=tune_type_choices, 
-                                       default=_str_default(tune.type.upper() if tune.type else None)),
-        key = questionary.text("Key", default=_str_default(tune.key)),
-        comments = questionary.text("Comment", default=_str_default(tune.comments)),
-    ).ask()
+    should_init_from_session = questionary.confirm("Initialize from TheSession.org?").ask()
+    if should_init_from_session:
+        print("Scraping tune data from TheSession.org...")
+        tune_data = scrape.get_tune_data(tune.name)
+        if tune_data is not None:
+            tune.name = tune_data.tune_name
+            tune.abc = tune_data.tune_abc
+            tune.key = tune_data.tune_key
+            tune.ts_id = tune_data.ts_id
+            print(f"Loaded tune data: Name: {tune.name} Key: {tune.key}")
+            print(tune.abc[0])
+            tune.status = _select_from_enum_values("Status", db.Status, tune.status, return_as_value=True)
+            tune.comments = questionary.text("Comment", default=_str_default(tune.comments)).ask()
+        else:
+            print("Failed to find tune. Must manually add/edit.")
+    else:
+        tune.status = _select_from_enum_values("Status", db.Status, tune.status, return_as_value=True)
+        tune.type = _select_from_enum_values("Type", db.TuneType, tune.type)
+        tune.key = questionary.text("Key", default=_str_default(tune.key)).ask()
+        tune.comments = questionary.text("Comment", default=_str_default(tune.comments)).ask()
 
-    tune.name = _get_val_from_dict("name", responses)
-    tune.status = db.Status[_get_val_from_dict("status", responses)].value
-    tune.type = _get_val_from_dict("tune_type", responses)
-    tune.key = _get_val_from_dict("key", responses)
-    tune.comments = _get_val_from_dict("comments", responses)
-
-    print(f"Saving tune: {tune}")
-    tune.save()
+    should_save = questionary.confirm(f"Save tune: {tune}").ask()
+    if should_save:
+        tune.save()
+    else:
+        print("Not saving tune.")
 
 def _add_recording_to_tune_interactively(recording: db.Recording, tune: db.Tune):
     """

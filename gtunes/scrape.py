@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import re
 import requests
 import queue
 import threading
@@ -15,7 +16,7 @@ def print_debug(debug_str):
     if debug:
         print(debug_str)
 
-def query_the_sessions(tune_name):
+def query_the_session(tune_name: str) -> list | None:
     global debug
     ret = []
     split_name = [word.lower() for word in tune_name.split()]
@@ -60,7 +61,7 @@ def get_abc(tune_id, should_print=False):
     return [div.text.strip() for div in divs]
 
 def _get_tune_id(tune_name):
-    tunes = query_the_sessions(tune_name)
+    tunes = query_the_session(tune_name)
     # TODO: if this doesn't find anything it actually returns "{'name': None, 'id': None}"
     if len(tunes) == 0:
         return None
@@ -198,11 +199,51 @@ def scrape_recording_data(tune_name: str = None, tune_id: str = None, limit: int
 
     return output
 
+@dataclass
+class ScrapeTuneData:
+    tune_name: str
+    ts_id: str
+    tune_type: str
+    tune_abc: list
+    tune_key: str
+
+def get_tune_data(tune_name: str) -> ScrapeTuneData | None:
+    tune_id = _get_tune_id(tune_name)
+    if not tune_id:
+        logging.debug(f"Did not find a tune id for tune name {tune_name}")
+        return None
+    
+    url = f"https://thesession.org/tunes/{tune_id}"
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    ts_id = tune_id
+
+    title = soup.find("h1")
+    tune_name = title.text.strip()
+    tune_type = title.find("a").text.strip()
+
+
+    abc_divs = soup.find_all('div', class_='notes')
+    tune_abc = [div.text.strip() for div in abc_divs]
+
+    first_tune_abc = tune_abc[0]
+    match = re.search(r'K:\s*(\S+)', first_tune_abc)
+
+    tune_key = None
+    if match:
+        tune_key = match.group(1)
+        print(tune_key)
+    
+    ret = ScrapeTuneData(tune_name, ts_id, tune_type, tune_abc, tune_key)
+
+    logging.debug(f"Found tune {ret}")
+
+    return ret
+
 def main():
-    find_track_number(3613, 62)
+    tune = get_tune_data("Richard Dwyer's")
+    print(tune)
 
 if __name__ == '__main__':
     main()
-
-
-
