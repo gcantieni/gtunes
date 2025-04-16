@@ -91,10 +91,19 @@ def _edit_and_save_tune_interactively(tune: db.Tune):
     should_save = questionary.confirm(f"Save tune: {tune}").ask()
     if should_save:
         tune.save()
+        print(f"Saved tune {tune}")
+        should_add_rec = questionary.confirm(f"Add recording associated with this tune?").ask()
+        if should_add_rec:
+            rec_exists = questionary.confirm("Recording exists?").ask()
+            if rec_exists:
+                _add_recording_to_tune_interactively(None, tune)
+            else:
+                rec_url = questionary.text("Enter url of recording").ask()
+                _rec_add(rec_url)
     else:
         print("Not saving tune.")
 
-def _add_recording_to_tune_interactively(recording: db.Recording, tune: db.Tune):
+def _add_recording_to_tune_interactively(recording: db.Recording | None, tune: db.Tune):
     """
     Associates a tune with a recording, and allows the user to specify a start and
     end time of that tune within the recording.
@@ -406,50 +415,39 @@ def set_add(args):
 # Rec command
 # =============
 
-def rec_add(args):
-    """
-    Add a recording to the tune database.
-    After adding, the user will be prompted if they want to associate it with
-    an existing tune.
-
-    Args:
-        args.url: Either a filepath, a Spotify URL, or a Youtube URL
-    """
-    ret = 0
+def _rec_add(url: str) -> db.Recording:
     dotenv.load_dotenv()
     data_dir = os.getenv("GTUNES_DATA_DIR", os.path.join("gtunes", "data"))
     # TODO: implement local storage
     recs_dir = os.path.join(data_dir, "recs")
-    db.open_db()
     this_rec = None
     # https://open.spotify.com/track/3dEbGOSpPkqa5p2Jrx9fkS?si=ec31a1a68cb3489e
-    if re.match(r"^https://open.spotify.com/track.*", args.url):
+    if re.match(r"^https://open.spotify.com/track.*", url):
         print("Detected spotify")
 
         sp = audio.connect_to_spotify()
-        track_data = sp.track(args.url)
+        track_data = sp.track(url)
         artist = track_data["artists"][0]["name"]
         album = track_data["album"]["name"]
         name = track_data["name"]
         print(f"Found Spotify track {name} off album {album} by {artist}.")
 
-        existing_rec = db.Recording.select().where(db.Recording.url == args.url).get_or_none()
+        existing_rec = db.Recording.select().where(db.Recording.url == url).get_or_none()
         if existing_rec:
             print("Already have this recording in the database:")
             print(existing_rec)
         else:
-            this_rec = db.Recording(name=name, url=args.url, source=db.RecordingSource.SPOTIFY, album=album, artist=artist)
+            this_rec = db.Recording(name=name, url=url, source=db.RecordingSource.SPOTIFY, album=album, artist=artist)
 
     # https://www.youtube.com/watch?v=zHqC__xzSkI
-    elif re.match(r"^https://www.youtube.com.*", args.url):
+    elif re.match(r"^https://www.youtube.com.*", url):
         print("Detected YouTube")
-        id = args.url.split("v=")[1].split("&")[0]
+        id = url.split("v=")[1].split("&")[0]
         print("ID: " + id)
     else:
         print("Interpreting as file path")
-        if not os.path.exists(args.url):
-            print(f"Error: path '{args.url}' doesn't exist")
-            ret = 1
+        if not os.path.exists(url):
+            print(f"Error: path '{url}' doesn't exist")
         else:
             pass
 
@@ -474,8 +472,26 @@ def rec_add(args):
 
         print("Done saving recording")
 
+    return this_rec
+
+def rec_add(args):
+    """
+    Add a recording to the tune database.
+    After adding, the user will be prompted if they want to associate it with
+    an existing tune.
+
+    Args:
+        args.url: Either a filepath, a Spotify URL, or a Youtube URL
+    """
+    db.open_db()
+
+    rec = _rec_add(args.url)
+
     db.close_db()
-    return ret
+
+    if not rec:
+        return 1
+    return 0
 
 def rec_ls(args):
     db.open_db()
