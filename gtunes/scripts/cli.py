@@ -118,8 +118,8 @@ def _add_recording_to_tune_interactively(recording: db.Recording, tune: db.Tune)
 
     recording_tune = db.RecordingTune(recording=recording, tune=tune)
 
-    recording_tune.start_time_secs = util.timestamp_to_seconds(input("Start time (MM:SS): "))
-    recording_tune.end_time_secs = util.timestamp_to_seconds(input("End time (MM:SS): "))
+    recording_tune.start_time_secs = util.timestamp_to_seconds(questionary.text("Start time (MM:SS)").ask())
+    recording_tune.end_time_secs = util.timestamp_to_seconds(questionary.text("End time (MM:SS)").ask())
 
     print("Saving tune data")
     recording_tune.save()
@@ -464,8 +464,8 @@ def rec_add(args):
             if not tune:
                 print("Must have existing tune to associate with recording.")
             else:
-                start_time_seconds = util.timestamp_to_seconds(input("Start time (MM:SS): "))
-                end_time_time_seconds = util.timestamp_to_seconds(input("End time (MM:SS): "))
+                start_time_seconds = util.timestamp_to_seconds(questionary.text("Start time (MM:SS)"))
+                end_time_time_seconds = util.timestamp_to_seconds(questionary.text("End time (MM:SS)"))
 
                 db.RecordingTune.create(tune=tune, recording=this_rec,
                                         start_time_secs=start_time_seconds, end_time_secs=end_time_time_seconds)
