@@ -506,19 +506,16 @@ def rec_ls(args):
 def rec_edit(args):
     db.open_db()
 
-    selected_recording = db.select_recording()
+    selected_recording = db.select_recording("Select recording to edit")
     if not selected_recording:
         print("No recording selected")
     else:
-        responses = questionary.form(
-            name = questionary.text("Name", default=_str_default(selected_recording.name)),
-            source = questionary.select("Source", choices=[rt for rt in db.RecordingSource], default=_str_default(selected_recording.source)),
-            url = questionary.text("Url", default=_str_default(selected_recording.url)),
-        ).ask()
+        selected_recording.name = questionary.text("Name", default=_str_default(selected_recording.name)).ask()
+        selected_recording.source = _select_from_enum_values("Source", db.RecordingSource, selected_recording.source)
+        selected_recording.url = questionary.text("Url", default=_str_default(selected_recording.url)).ask()
 
-        selected_recording.name = _get_val_from_dict("name", responses)
-        selected_recording.source = _get_val_from_dict("source", responses)
-        selected_recording.url = _get_val_from_dict("url", responses)
+        print(f"Saving recording {selected_recording}")
+        selected_recording.save()
 
     db.close_db()
 
