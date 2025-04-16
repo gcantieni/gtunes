@@ -103,7 +103,7 @@ def _edit_and_save_tune_interactively(tune: db.Tune):
     else:
         print("Not saving tune.")
 
-def _add_recording_to_tune_interactively(recording: db.Recording | None, tune: db.Tune):
+def _add_recording_to_tune_interactively(recording: db.Recording | None, tune: db.Tune | None) -> bool:
     """
     Associates a tune with a recording, and allows the user to specify a start and
     end time of that tune within the recording.
@@ -118,12 +118,18 @@ def _add_recording_to_tune_interactively(recording: db.Recording | None, tune: d
         True on success and False otherwise
     """
     if not recording:
-        rec, _ = db.select_recording("Associate this tune with a recording")
+        rec = db.select_recording("Associate this tune with a recording")
         if not rec:
             print("No recording selected. Exiting.")
             return False
 
     print(f"Recording: {rec}")
+
+    if not tune:
+        tune = db.select_tune("Select tune to link")
+        if not tune:
+            print("No tune selected")
+            return False
 
     recording_tune = db.RecordingTune(recording=recording, tune=tune)
 
@@ -521,6 +527,11 @@ def rec_edit(args):
 
     return 0
 
+def rec_link(args):
+    db.open_db()
+    _add_recording_to_tune_interactively(None, None)
+    db.close_db()
+
 def main():
     parser = argparse.ArgumentParser(description="Add and manipulate traditional tunes.")
 
@@ -579,6 +590,9 @@ def main():
 
     parser_rec_edit = rec_subparser.add_parser("edit", help="Edit recording information.")
     parser_rec_edit.set_defaults(func=rec_edit)
+
+    parser_rec_link = rec_subparser.add_parser("link", help="Link this recording to an existing tune.")
+    parser_rec_link.set_defaults(func=rec_link)
 
     # Set subparser
     parser_set = subparsers.add_parser("set", help="Manage sets of tunes")
