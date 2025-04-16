@@ -118,7 +118,7 @@ def _add_recording_to_tune_interactively(recording: db.Recording | None, tune: d
         True on success and False otherwise
     """
     if not recording:
-        rec, _ = db.select_recording(header="Associate this tune with a recording")
+        rec, _ = db.select_recording("Associate this tune with a recording")
         if not rec:
             print("No recording selected. Exiting.")
             return False
