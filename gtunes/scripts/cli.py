@@ -421,7 +421,7 @@ def set_add(args):
 # Rec command
 # =============
 
-def _rec_add(url: str) -> db.Recording:
+def _rec_add(url: str, prompt_to_add_tune: bool = False) -> db.Recording:
     dotenv.load_dotenv()
     data_dir = os.getenv("GTUNES_DATA_DIR", os.path.join("gtunes", "data"))
     # TODO: implement local storage
@@ -461,9 +461,12 @@ def _rec_add(url: str) -> db.Recording:
         print("Saving recording")
         this_rec.save()
 
-        y_or_n = input("Add existing tune to this recording? ")
+        if prompt_to_add_tune:
+            should_add_tune = questionary.confirm("Add existing tune to this recording?").ask()
+        else:
+            should_add_tune = False
 
-        if y_or_n == "y":
+        if should_add_tune == "y":
             tune = db.select_tune()
             if not tune:
                 print("Must have existing tune to associate with recording.")
