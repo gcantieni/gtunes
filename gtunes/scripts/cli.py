@@ -103,7 +103,7 @@ def _edit_and_save_tune_interactively(tune: db.Tune):
     else:
         print("Not saving tune.")
 
-def _add_recording_to_tune_interactively(recording: db.Recording | None, tune: db.Tune | None) -> bool:
+def _add_recording_to_tune_interactively(rec: db.Recording | None, tune: db.Tune | None) -> bool:
     """
     Associates a tune with a recording, and allows the user to specify a start and
     end time of that tune within the recording.
@@ -117,7 +117,7 @@ def _add_recording_to_tune_interactively(recording: db.Recording | None, tune: d
     Returns:
         True on success and False otherwise
     """
-    if not recording:
+    if not rec:
         rec = db.select_recording("Associate this tune with a recording")
         if not rec:
             print("No recording selected. Exiting.")
@@ -131,7 +131,7 @@ def _add_recording_to_tune_interactively(recording: db.Recording | None, tune: d
             print("No tune selected")
             return False
 
-    recording_tune = db.RecordingTune(recording=recording, tune=tune)
+    recording_tune = db.RecordingTune(recording=rec, tune=tune)
 
     recording_tune.start_time_secs = util.timestamp_to_seconds(questionary.text("Start time (MM:SS)").ask())
     recording_tune.end_time_secs = util.timestamp_to_seconds(questionary.text("End time (MM:SS)").ask())
@@ -509,6 +509,16 @@ def rec_ls(args):
     
     db.close_db()
 
+def rec_info(args):
+    db.open_db()
+    recording = db.select_recording("Select a recording to show info of")
+
+    print("Tunes:")
+    for rectune in db.RecordingTune.select().where(db.Recording == recording):
+        print(rectune.tune)
+
+    db.close_db()
+
 def rec_edit(args):
     db.open_db()
 
@@ -587,6 +597,9 @@ def main():
 
     parser_rec_ls = rec_subparser.add_parser("ls", help="List recordings")
     parser_rec_ls.set_defaults(func=rec_ls)
+
+    parser_rec_info = rec_subparser.add_parser("info", help="Show more information about a recording.")
+    parser_rec_info.set_defaults(func=rec_info)
 
     parser_rec_edit = rec_subparser.add_parser("edit", help="Edit recording information.")
     parser_rec_edit.set_defaults(func=rec_edit)
